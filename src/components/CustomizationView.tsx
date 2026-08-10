@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   User, 
@@ -37,6 +37,17 @@ export const CustomizationView: React.FC<CustomizationViewProps> = ({
   onUpdateProfile,
   onTogglePermission,
 }) => {
+  const [apiBaseUrl, setApiBaseUrl] = useState(localStorage.getItem('diguu_api_base_url') || '');
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleSaveApiBase = () => {
+    const cleanedUrl = apiBaseUrl.trim().replace(/\/$/, '');
+    localStorage.setItem('diguu_api_base_url', cleanedUrl);
+    setApiBaseUrl(cleanedUrl);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2500);
+  };
+
   const outfits = [
     'Pink Sweats & Bow 🎀',
     'Cyberpunk Neon Jacket ⚡',
@@ -277,6 +288,41 @@ export const CustomizationView: React.FC<CustomizationViewProps> = ({
               </button>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* 3.5 BACKEND API SERVER SETTINGS */}
+      <div className="p-4 rounded-3xl bg-slate-900/90 border border-pink-500/20 shadow-xl space-y-4">
+        <div className="flex items-center gap-2">
+          <Sliders className="w-5 h-5 text-pink-400" />
+          <h3 className="text-sm font-bold text-slate-100">Android & Backend API Settings</h3>
+        </div>
+        <p className="text-xs text-slate-300">
+          When running DIGUU AI as an Android APK, configure your custom backend API server URL so the app can communicate with the Gemini AI.
+        </p>
+        <div className="space-y-2">
+          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Backend API Server URL</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="e.g. https://your-diguu-backend.onrender.com"
+              value={apiBaseUrl}
+              onChange={(e) => setApiBaseUrl(e.target.value)}
+              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-pink-500/50"
+            />
+            <button
+              onClick={handleSaveApiBase}
+              className="px-4 py-2 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold transition-all whitespace-nowrap"
+            >
+              Save URL
+            </button>
+          </div>
+          {saveSuccess && (
+            <p className="text-[11px] text-emerald-400 font-bold animate-pulse">✓ Backend Server URL updated successfully!</p>
+          )}
+          <p className="text-[10px] text-slate-500">
+            Leave blank to connect to the local server (default).
+          </p>
         </div>
       </div>
 

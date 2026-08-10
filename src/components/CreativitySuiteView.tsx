@@ -53,7 +53,8 @@ export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = ({
     setGeneratedImage(null);
 
     try {
-      const res = await fetch('/api/generate-image', {
+      const apiBase = localStorage.getItem('diguu_api_base_url') || '';
+      const res = await fetch(`${apiBase}/api/generate-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: imagePrompt, aspectRatio: '1:1' }),
@@ -77,7 +78,8 @@ export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = ({
     setCreativeResult('');
 
     try {
-      const res = await fetch('/api/creativity', {
+      const apiBase = localStorage.getItem('diguu_api_base_url') || '';
+      const res = await fetch(`${apiBase}/api/creativity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
