@@ -1,31 +1,10 @@
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
-
-// Safe __filename and __dirname for both ESM and CommonJS
-const getCurrentDirnameAndFilename = () => {
-  try {
-    // If running in ESM
-    if (import.meta && import.meta.url) {
-      const fn = fileURLToPath(import.meta.url);
-      return { __filename: fn, __dirname: path.dirname(fn) };
-    }
-  } catch (e) {
-    // ignore
-  }
-  // Fallback to CommonJS global variables
-  return {
-    __filename: typeof __filename !== "undefined" ? __filename : "",
-    __dirname: typeof __dirname !== "undefined" ? __dirname : ""
-  };
-};
-
-const { __filename, __dirname } = getCurrentDirnameAndFilename();
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -290,7 +269,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, "dist");
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));

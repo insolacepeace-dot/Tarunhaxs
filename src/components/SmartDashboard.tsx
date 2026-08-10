@@ -25,6 +25,12 @@ import {
 } from 'lucide-react';
 import { UserProfile, WeatherData, Reminder, HabitGoal, QuickActionItem, SavedPlace } from '../types';
 import { AvatarCompanion } from './AvatarCompanion';
+import { 
+  toggleNativeFlashlight, 
+  openNativeWhatsApp, 
+  triggerNativeAlarmOrCalendar, 
+  triggerNativeCameraCapture 
+} from '../utils/nativeBridge';
 
 interface SmartDashboardProps {
   userProfile: UserProfile;
@@ -60,6 +66,34 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
   isBriefingLoading,
 }) => {
   const [briefingTab, setBriefingTab] = useState<'morning' | 'evening'>('morning');
+  const [flashActive, setFlashActive] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2500);
+  };
+
+  const handleFlashlightToggle = async () => {
+    const newState = await toggleNativeFlashlight();
+    setFlashActive(newState);
+    showToast(newState ? 'Flashlight Enabled 🔦' : 'Flashlight Disabled 🔦');
+  };
+
+  const handleOpenWhatsApp = () => {
+    openNativeWhatsApp('Hii Jaan! Sending message via DIGUU AI 💕');
+    showToast('Launching WhatsApp... 💬');
+  };
+
+  const handleOpenAlarm = () => {
+    triggerNativeAlarmOrCalendar('DIGUU Morning Alarm');
+    showToast('Opening Android Clock / Alarm Intent ⏰');
+  };
+
+  const handleOpenCamera = () => {
+    triggerNativeCameraCapture();
+    showToast('Launching Camera Stream 📷');
+  };
 
   // Quick action icon mapper
   const renderIcon = (name: string) => {
@@ -174,6 +208,111 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
             )}
           </div>
         )}
+      </div>
+
+      {/* Toast Feedback Notification */}
+      {toastMsg && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="p-3 bg-gradient-to-r from-pink-500 to-purple-600 rounded-2xl text-white text-xs font-bold text-center shadow-lg border border-pink-400/40"
+        >
+          {toastMsg}
+        </motion.div>
+      )}
+
+      {/* Direct Native Android Controls Bar */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-4 backdrop-blur-md space-y-3 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-pink-400" />
+            <h3 className="text-xs font-bold text-pink-400 uppercase tracking-widest">Native Android Controls</h3>
+          </div>
+          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Capacitor Bridge</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {/* Flashlight */}
+          <motion.button
+            onClick={handleFlashlightToggle}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+              flashActive
+                ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                : 'bg-slate-950/60 border-slate-800 hover:border-amber-500/40 text-slate-200'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <Zap className={`w-5 h-5 ${flashActive ? 'text-amber-400 animate-pulse' : 'text-slate-400'}`} />
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-800">
+                {flashActive ? 'ON' : 'OFF'}
+              </span>
+            </div>
+            <div className="mt-2">
+              <span className="text-xs font-bold block">Flashlight</span>
+              <span className="text-[10px] text-slate-400 block">Camera Torch LED</span>
+            </div>
+          </motion.button>
+
+          {/* WhatsApp Intent */}
+          <motion.button
+            onClick={handleOpenWhatsApp}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-emerald-500/40 text-left flex flex-col justify-between transition-all group"
+          >
+            <div className="flex items-center justify-between">
+              <MessageSquare className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">
+                Intent
+              </span>
+            </div>
+            <div className="mt-2">
+              <span className="text-xs font-bold text-slate-200 block">WhatsApp</span>
+              <span className="text-[10px] text-slate-400 block">Launch App Direct</span>
+            </div>
+          </motion.button>
+
+          {/* Alarm & Clock */}
+          <motion.button
+            onClick={handleOpenAlarm}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-cyan-500/40 text-left flex flex-col justify-between transition-all group"
+          >
+            <div className="flex items-center justify-between">
+              <Clock className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400">
+                Alarm
+              </span>
+            </div>
+            <div className="mt-2">
+              <span className="text-xs font-bold text-slate-200 block">Set Alarm</span>
+              <span className="text-[10px] text-slate-400 block">Clock Intent</span>
+            </div>
+          </motion.button>
+
+          {/* Camera Capture */}
+          <motion.button
+            onClick={handleOpenCamera}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-purple-500/40 text-left flex flex-col justify-between transition-all group"
+          >
+            <div className="flex items-center justify-between">
+              <Camera className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400">
+                Camera
+              </span>
+            </div>
+            <div className="mt-2">
+              <span className="text-xs font-bold text-slate-200 block">Camera</span>
+              <span className="text-[10px] text-slate-400 block">Live Feed Capture</span>
+            </div>
+          </motion.button>
+        </div>
       </div>
 
       {/* Voice Quick Commands */}

@@ -6,13 +6,13 @@ import {
   Mail, 
   Heart, 
   FileText, 
-  Languages, 
-  Lightbulb, 
   Copy, 
   Check, 
   Loader2, 
-  Plus,
-  BookOpen
+  Download,
+  Share2,
+  Wand2,
+  RefreshCw
 } from 'lucide-react';
 import { Note } from '../types';
 
@@ -31,6 +31,7 @@ export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = ({
   const [imagePrompt, setImagePrompt] = useState('');
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState('3D Anime Avatar');
 
   // AI Drafts & Creativity State
   const [creativityType, setCreativityType] = useState<'email_msg' | 'caption' | 'poem_shayari' | 'summarize' | 'translate' | 'brainstorm'>('poem_shayari');
@@ -45,26 +46,62 @@ export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = ({
   const [noteContent, setNoteContent] = useState('');
   const [noteCategory, setNoteCategory] = useState<'Work' | 'Personal' | 'Ideas' | 'Voice Notes' | 'Meeting Summaries'>('Ideas');
 
-  // Handle Image Generation
-  const handleGenerateImage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!imagePrompt.trim() || isImageLoading) return;
+  const stylePresets = [
+    '3D Anime Avatar',
+    'Cyberpunk Neon Girl',
+    '3D Pixar Cute Bestie',
+    'Realistic Portrait',
+    'Fantasy Dreamscape',
+    'Kawaii Chibi Art'
+  ];
+
+  // Handle Free Real-time AI Image Generation (Pollinations AI + Gemini Server Fallback)
+  const handleGenerateImage = async (e?: React.FormEvent, customPrompt?: string) => {
+    if (e) e.preventDefault();
+    const promptToUse = customPrompt || imagePrompt;
+    if (!promptToUse.trim() || isImageLoading) return;
+
     setIsImageLoading(true);
     setGeneratedImage(null);
 
+    const fullPrompt = `${promptToUse}, ${selectedStyle}, masterpiece, 8k resolution, highly detailed, vibrant lighting`;
+    const seed = Math.floor(Math.random() * 1000000);
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=1024&height=1024&seed=${seed}&nologo=true`;
+
     try {
-      const apiBase = localStorage.getItem('diguu_api_base_url') || '';
-      const res = await fetch(`${apiBase}/api/generate-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: imagePrompt, aspectRatio: '1:1' }),
+      // Test loading pollinations image first
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = pollinationsUrl;
+
+      await new Promise((resolve, reject) => {
+        img.onload = () => resolve(true);
+        img.onerror = async () => {
+          // If pollinations fails, fallback to server Gemini generate-image API
+          try {
+            const res = await fetch('/api/generate-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt: fullPrompt, aspectRatio: '1:1' }),
+            });
+            const data = await res.json();
+            if (data.imageUrl) {
+              setGeneratedImage(data.imageUrl);
+              resolve(true);
+            } else {
+              reject(new Error('Image generation failed'));
+            }
+          } catch (err) {
+            reject(err);
+          }
+        };
       });
-      const data = await res.json();
-      if (data.imageUrl) {
-        setGeneratedImage(data.imageUrl);
-      }
+
+      setGeneratedImage(pollinationsUrl);
     } catch (err) {
       console.error('Error generating image:', err);
+      // Set direct pollinations URL as fallback
+      setGeneratedImage(pollinationsUrl);
     } finally {
       setIsImageLoading(false);
     }
@@ -78,8 +115,7 @@ export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = ({
     setCreativeResult('');
 
     try {
-      const apiBase = localStorage.getItem('diguu_api_base_url') || '';
-      const res = await fetch(`${apiBase}/api/creativity`, {
+      const res = await fetch('/api/creativity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -163,20 +199,42 @@ export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = ({
       {activeSubTab === 'image' && (
         <div className="space-y-4">
           <div className="p-4 rounded-3xl bg-slate-900/80 border border-pink-500/20 shadow-xl space-y-2">
-            <div className="flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-pink-400" />
-              <h3 className="text-sm font-bold text-slate-100">DIGUU AI Image Generator</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-pink-400" />
+                <h3 className="text-sm font-bold text-slate-100">DIGUU AI Image Generator</h3>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                Live 8K Engine ✨
+              </span>
             </div>
             <p className="text-xs text-slate-300/80">
-              Transform your prompt into 3D avatars, anime art, digital wallpapers, or avatars instantly!
+              Transform your prompt into 3D avatars, anime art, wallpapers, or avatars instantly!
             </p>
           </div>
 
-          <form onSubmit={handleGenerateImage} className="space-y-3">
+          {/* Style Presets */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {stylePresets.map((style) => (
+              <button
+                key={style}
+                onClick={() => setSelectedStyle(style)}
+                className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all border ${
+                  selectedStyle === style
+                    ? 'bg-pink-500/20 border-pink-500 text-pink-300'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {style}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={(e) => handleGenerateImage(e)} className="space-y-3">
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="e.g. Cute 3D girl avatar with purple hair and glowing neon heart..."
+                placeholder="e.g. Cute 3D anime girl avatar with purple glowing hair..."
                 value={imagePrompt}
                 onChange={(e) => setImagePrompt(e.target.value)}
                 className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-pink-500/50"
@@ -186,26 +244,62 @@ export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = ({
                 disabled={!imagePrompt.trim() || isImageLoading}
                 className="px-5 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold text-xs disabled:opacity-50 shadow-md hover:scale-105 transition-all flex items-center gap-2"
               >
-                {isImageLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {isImageLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                 <span>Generate</span>
               </button>
             </div>
           </form>
 
+          {/* Loading Indicator */}
+          {isImageLoading && (
+            <div className="py-12 flex flex-col items-center justify-center space-y-3 bg-slate-900/50 rounded-3xl border border-slate-800">
+              <Loader2 className="w-8 h-8 text-pink-400 animate-spin" />
+              <p className="text-xs text-pink-300 font-semibold animate-pulse">
+                DIGUU AI is rendering your masterpiece... ✨
+              </p>
+            </div>
+          )}
+
           {/* Generated Image Result Card */}
-          {generatedImage && (
+          {generatedImage && !isImageLoading && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-3 rounded-3xl bg-slate-900 border border-pink-500/30 overflow-hidden shadow-2xl flex flex-col items-center"
+              className="p-3.5 rounded-3xl bg-slate-900 border border-pink-500/30 overflow-hidden shadow-2xl flex flex-col items-center space-y-3"
             >
-              <img
-                src={generatedImage}
-                alt="AI Generated Result"
-                referrerPolicy="no-referrer"
-                className="w-full max-w-sm rounded-2xl object-cover aspect-square shadow-lg"
-              />
-              <span className="text-[11px] text-pink-300 font-semibold mt-2">✨ Generated by DIGUU AI Engine</span>
+              <div className="relative w-full max-w-md overflow-hidden rounded-2xl group shadow-xl">
+                <img
+                  src={generatedImage}
+                  alt="AI Generated Result"
+                  referrerPolicy="no-referrer"
+                  className="w-full rounded-2xl object-cover aspect-square shadow-lg transition-transform duration-300 group-hover:scale-105"
+                />
+              </div>
+
+              <div className="flex items-center justify-between w-full max-w-md pt-1 px-1">
+                <span className="text-[11px] text-pink-300 font-semibold">✨ DIGUU AI Image Engine</span>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleGenerateImage(undefined, imagePrompt)}
+                    className="p-2 rounded-xl bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-700 transition-colors"
+                    title="Regenerate"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+
+                  <a
+                    href={generatedImage}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download="diguu_ai_art.jpg"
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-md hover:scale-105 transition-all"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download</span>
+                  </a>
+                </div>
+              </div>
             </motion.div>
           )}
         </div>

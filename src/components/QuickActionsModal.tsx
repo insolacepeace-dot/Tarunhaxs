@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Bell, AlarmClock, PhoneCall, Zap, Camera, MessageSquare, Calculator, Sparkles, Navigation } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 import { QuickActionItem, Reminder } from '../types';
+import { 
+  toggleNativeFlashlight, 
+  openNativeWhatsApp, 
+  triggerNativeAlarmOrCalendar, 
+  triggerNativeCameraCapture 
+} from '../utils/nativeBridge';
 
 interface QuickActionsModalProps {
   actionItem: QuickActionItem | null;
@@ -23,6 +29,7 @@ export const QuickActionsModal: React.FC<QuickActionsModalProps> = ({
   const [calcInput, setCalcInput] = useState('');
   const [calcResult, setCalcResult] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
 
   const handleReminderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,10 +38,11 @@ export const QuickActionsModal: React.FC<QuickActionsModalProps> = ({
       date: remDate,
       time: remTime,
       repeat: 'Daily',
-      category: 'Task',
+      category: 'Health',
       soundName: 'Sweet Tone',
     });
-    setStatusMessage('Reminder saved successfully! 🔔');
+    triggerNativeAlarmOrCalendar(remTitle, remTime);
+    setStatusMessage('Reminder & Native Alarm Triggered! 🔔');
     setTimeout(() => {
       setStatusMessage(null);
       onClose();
@@ -43,7 +51,6 @@ export const QuickActionsModal: React.FC<QuickActionsModalProps> = ({
 
   const handleCalculate = () => {
     try {
-      // Safe simple math evaluate
       const cleaned = calcInput.replace(/[^0-9+\-*/().]/g, '');
       // eslint-disable-next-line no-eval
       const res = eval(cleaned);
@@ -53,12 +60,35 @@ export const QuickActionsModal: React.FC<QuickActionsModalProps> = ({
     }
   };
 
-  const handleExecuteQuickAction = () => {
-    setStatusMessage(`Executed "${actionItem.label}" via DIGUU AI 💕`);
-    setTimeout(() => {
-      setStatusMessage(null);
-      onClose();
-    }, 1500);
+  const handleExecuteQuickAction = async () => {
+    const act = actionItem.action.toLowerCase();
+    const label = actionItem.label.toLowerCase();
+
+    if (act.includes('flashlight') || label.includes('flashlight') || label.includes('torch')) {
+      const isOn = await toggleNativeFlashlight();
+      setStatusMessage(isOn ? 'Flashlight ON 🔦' : 'Flashlight OFF 🔦');
+    } else if (act.includes('whatsapp') || label.includes('whatsapp') || label.includes('chat')) {
+      openNativeWhatsApp('Hii Jaan! DIGUU AI is sending this message 💕');
+      setStatusMessage('Opening WhatsApp... 💬');
+    } else if (act.includes('camera') || label.includes('camera') || label.includes('photo')) {
+      setStatusMessage('Opening Camera Feed... 📷');
+      await triggerNativeCameraCapture((dataUrl) => {
+        setCapturedPhoto(dataUrl);
+        setStatusMessage('Photo Captured! 📷');
+      });
+    } else if (act.includes('alarm') || act.includes('reminder') || label.includes('alarm')) {
+      triggerNativeAlarmOrCalendar(actionItem.label);
+      setStatusMessage('Opening Native Android Clock Intent... ⏰');
+    } else {
+      setStatusMessage(`Executed "${actionItem.label}" via DIGUU AI 💕`);
+    }
+
+    if (!capturedPhoto) {
+      setTimeout(() => {
+        setStatusMessage(null);
+        onClose();
+      }, 1800);
+    }
   };
 
   return (
@@ -85,9 +115,14 @@ export const QuickActionsModal: React.FC<QuickActionsModalProps> = ({
         </div>
 
         {statusMessage ? (
-          <div className="py-8 text-center space-y-2">
+          <div className="py-6 text-center space-y-2">
             <Sparkles className="w-8 h-8 text-pink-400 mx-auto animate-bounce" />
             <div className="text-xs font-bold text-pink-300">{statusMessage}</div>
+            {capturedPhoto && (
+              <div className="mt-3">
+                <img src={capturedPhoto} alt="Captured" className="w-32 h-32 object-cover rounded-2xl mx-auto shadow-md" />
+              </div>
+            )}
           </div>
         ) : (
           <div>
@@ -130,7 +165,7 @@ export const QuickActionsModal: React.FC<QuickActionsModalProps> = ({
                   type="submit"
                   className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold shadow-lg mt-2"
                 >
-                  Save {actionItem.label}
+                  Save & Launch Android Alarm
                 </button>
               </form>
             ) : actionItem.action === 'open_calc' ? (
@@ -159,13 +194,13 @@ export const QuickActionsModal: React.FC<QuickActionsModalProps> = ({
             ) : (
               <div className="py-4 text-center space-y-4">
                 <p className="text-xs text-slate-300">
-                  DIGUU AI will execute <strong className="text-pink-300">{actionItem.label}</strong> with hands-free routine automation.
+                  DIGUU AI will trigger <strong className="text-pink-300">{actionItem.label}</strong> directly on your device.
                 </p>
                 <button
                   onClick={handleExecuteQuickAction}
                   className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold shadow-lg"
                 >
-                  Execute Now
+                  Trigger Native Action
                 </button>
               </div>
             )}

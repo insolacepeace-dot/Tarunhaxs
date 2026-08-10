@@ -1,9 +1,28 @@
-import type { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
+const config = {
   appId: 'com.diguu.ai',
   appName: 'DIGUU AI',
-  webDir: 'dist'
+  webDir: 'dist',
+  bundledWebRuntime: false,
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 1500,
+      backgroundColor: '#020617',
+      showSpinner: false
+    },
+    Permissions: {
+      permissions: [
+        'camera',
+        'microphone',
+        'notifications',
+        'location',
+        'storage',
+        'phone',
+        'sms',
+        'contacts',
+        'accessibility'
+      ]
+    }
+  }
 };
 
 export default config;

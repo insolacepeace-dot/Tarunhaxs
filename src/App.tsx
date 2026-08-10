@@ -32,6 +32,7 @@ import { CreativitySuiteView } from './components/CreativitySuiteView';
 import { CustomizationView } from './components/CustomizationView';
 import { PermissionsModal } from './components/PermissionsModal';
 import { QuickActionsModal } from './components/QuickActionsModal';
+import { requestNativeAndroidPermissions } from './utils/nativeBridge';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -47,6 +48,19 @@ export default function App() {
   const [quickActions] = useState<QuickActionItem[]>(initialQuickActions);
   const [weather] = useState(initialWeather);
   const [places] = useState(initialPlaces);
+
+  // Auto trigger native Android runtime permission request on app launch
+  useEffect(() => {
+    requestNativeAndroidPermissions().then((grantedResults) => {
+      setPermissions((prev) => ({
+        ...prev,
+        microphone: grantedResults.microphone ?? prev.microphone,
+        camera: grantedResults.camera ?? prev.camera,
+        location: grantedResults.location ?? prev.location,
+        notifications: grantedResults.notifications ?? prev.notifications,
+      }));
+    });
+  }, []);
 
   // Chat & Voice States
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -155,8 +169,7 @@ export default function App() {
     setIsChatLoading(true);
 
     try {
-      const apiBase = localStorage.getItem('diguu_api_base_url') || '';
-      const response = await fetch(`${apiBase}/api/chat`, {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -212,8 +225,7 @@ export default function App() {
   const handleGenerateBriefing = async (type: 'morning' | 'evening') => {
     setIsBriefingLoading(true);
     try {
-      const apiBase = localStorage.getItem('diguu_api_base_url') || '';
-      const res = await fetch(`${apiBase}/api/briefing`, {
+      const res = await fetch('/api/briefing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
