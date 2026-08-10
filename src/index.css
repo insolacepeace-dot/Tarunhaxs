@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #0A0C10;
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+/* Sleek Glowing Elements */
+.glow-cyan {
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.3);
+}
+
+.glow-indigo {
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

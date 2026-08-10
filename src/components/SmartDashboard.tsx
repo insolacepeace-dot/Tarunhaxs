@@ -1,0 +1,328 @@
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
+import { 
+  Sun, 
+  Moon, 
+  CloudSun, 
+  BatteryCharging, 
+  Sparkles, 
+  Clock, 
+  Bell, 
+  CheckCircle2, 
+  Plus, 
+  Zap, 
+  PhoneCall, 
+  Camera, 
+  Music, 
+  MessageSquare, 
+  Calculator, 
+  FileText, 
+  HeartPulse, 
+  Navigation, 
+  ChevronRight,
+  Flame,
+  Volume2
+} from 'lucide-react';
+import { UserProfile, WeatherData, Reminder, HabitGoal, QuickActionItem, SavedPlace } from '../types';
+import { AvatarCompanion } from './AvatarCompanion';
+
+interface SmartDashboardProps {
+  userProfile: UserProfile;
+  weather: WeatherData;
+  reminders: Reminder[];
+  habits: HabitGoal[];
+  quickActions: QuickActionItem[];
+  places: SavedPlace[];
+  isSpeaking: boolean;
+  isListening: boolean;
+  onVoiceClick: () => void;
+  onSelectAction: (actionItem: QuickActionItem) => void;
+  onToggleReminder: (id: string) => void;
+  onGenerateBriefing: (type: 'morning' | 'evening') => void;
+  briefingText: string;
+  isBriefingLoading: boolean;
+}
+
+export const SmartDashboard: React.FC<SmartDashboardProps> = ({
+  userProfile,
+  weather,
+  reminders,
+  habits,
+  quickActions,
+  places,
+  isSpeaking,
+  isListening,
+  onVoiceClick,
+  onSelectAction,
+  onToggleReminder,
+  onGenerateBriefing,
+  briefingText,
+  isBriefingLoading,
+}) => {
+  const [briefingTab, setBriefingTab] = useState<'morning' | 'evening'>('morning');
+
+  // Quick action icon mapper
+  const renderIcon = (name: string) => {
+    switch (name) {
+      case 'AlarmClock': return <Clock className="w-5 h-5 text-amber-400" />;
+      case 'Bell': return <Bell className="w-5 h-5 text-pink-400" />;
+      case 'PhoneCall': return <PhoneCall className="w-5 h-5 text-emerald-400" />;
+      case 'CloudSun': return <CloudSun className="w-5 h-5 text-cyan-400" />;
+      case 'Zap': return <Zap className="w-5 h-5 text-yellow-400" />;
+      case 'Music': return <Music className="w-5 h-5 text-purple-400" />;
+      case 'MessageSquare': return <MessageSquare className="w-5 h-5 text-green-400" />;
+      case 'HeartPulse': return <HeartPulse className="w-5 h-5 text-rose-400" />;
+      case 'Camera': return <Camera className="w-5 h-5 text-indigo-400" />;
+      case 'FileText': return <FileText className="w-5 h-5 text-orange-400" />;
+      case 'Calculator': return <Calculator className="w-5 h-5 text-blue-400" />;
+      case 'Navigation': return <Navigation className="w-5 h-5 text-teal-400" />;
+      default: return <Sparkles className="w-5 h-5 text-pink-400" />;
+    }
+  };
+
+  return (
+    <div className="space-y-6 pb-24 px-4 max-w-2xl mx-auto pt-2">
+      {/* Top Main Avatar Companion Box */}
+      <AvatarCompanion
+        userProfile={userProfile}
+        isSpeaking={isSpeaking}
+        isListening={isListening}
+        onVoiceClick={onVoiceClick}
+      />
+
+      {/* Weather & Battery Status Cards */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Weather Card */}
+        <div className="p-4 rounded-3xl bg-slate-900/50 border border-slate-800 backdrop-blur-md flex items-center justify-between shadow-lg">
+          <div>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">Weather</span>
+            <div className="text-2xl font-light text-white">{weather.temp}°C</div>
+            <div className="text-xs text-cyan-400 font-medium mt-0.5">{weather.condition} • {weather.city}</div>
+          </div>
+          <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+            <CloudSun className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* System & Battery Card */}
+        <div className="p-4 rounded-3xl bg-slate-900/50 border border-slate-800 backdrop-blur-md flex items-center justify-between shadow-lg">
+          <div>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold block mb-1">System</span>
+            <div className="text-2xl font-light text-emerald-400">88% ⚡</div>
+            <div className="text-xs text-slate-400 mt-0.5">Privacy Mode Active</div>
+          </div>
+          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <BatteryCharging className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* Morning & Evening Briefing Section */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 backdrop-blur-md space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-indigo-500" />
+            <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest">
+              {briefingTab === 'morning' ? 'Morning Briefing' : 'Evening Summary'}
+            </h3>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-2xl border border-slate-800">
+            <button
+              onClick={() => {
+                setBriefingTab('morning');
+                onGenerateBriefing('morning');
+              }}
+              className={`px-3 py-1 rounded-xl text-xs font-medium flex items-center gap-1 transition-all ${
+                briefingTab === 'morning'
+                  ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+              <span>Morning</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setBriefingTab('evening');
+                onGenerateBriefing('evening');
+              }}
+              className={`px-3 py-1 rounded-xl text-xs font-medium flex items-center gap-1 transition-all ${
+                briefingTab === 'evening'
+                  ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Moon className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Evening</span>
+            </button>
+          </div>
+        </div>
+
+        {isBriefingLoading ? (
+          <div className="py-6 flex flex-col items-center justify-center gap-2">
+            <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-indigo-300 font-medium">DIGUU is analyzing schedule & traffic...</span>
+          </div>
+        ) : (
+          <div className="p-3.5 bg-slate-800/40 rounded-2xl border border-slate-800/80 text-xs text-slate-200 leading-relaxed whitespace-pre-line">
+            {briefingText || (
+              briefingTab === 'morning'
+                ? `☀️ Good Morning ${userProfile.nickname}!\n72° Sunny in ${weather.city}.\n\n💡 DIGUU Suggests: Leave in 15 mins for your product sync meeting. Traffic is increasing on main routes.\n\n📅 Agenda Highlights:\n• 10:00 AM — Product Sync\n• 02:30 PM — Health Checkup`
+                : `🌙 Good Evening ${userProfile.nickname}!\nGreat job today! You completed 3 key tasks.\n\n💧 Hydration Status: 2.1L completed.\n🧘 Guided Breathing: Recommended before sleep for optimal rest.`
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Voice Quick Commands */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest">
+            Voice Shortcuts
+          </h3>
+          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Hands-Free</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          {quickActions.slice(0, 4).map((qa) => (
+            <motion.button
+              key={qa.id}
+              onClick={() => onSelectAction(qa)}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              className="p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-left flex items-center gap-3 transition-all group"
+            >
+              <div className="p-2 rounded-xl bg-slate-800/80 group-hover:bg-indigo-500/20 text-indigo-400 transition-colors">
+                {renderIcon(qa.iconName)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] text-slate-400 uppercase tracking-tighter block">{qa.label}</span>
+                <span className="text-xs text-white font-medium truncate block">"{qa.shortcut}"</span>
+              </div>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick Capabilities Grid */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest">
+            Smart Productivity
+          </h3>
+          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">80+ Actions</span>
+        </div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+          {quickActions.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onSelectAction(item)}
+              className="p-3 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-indigo-500/40 hover:bg-slate-800/40 transition-all flex flex-col items-center justify-center text-center gap-2 group shadow-sm"
+            >
+              <div className="p-2 rounded-xl bg-slate-800/60 group-hover:scale-110 transition-transform">
+                {renderIcon(item.iconName)}
+              </div>
+              <span className="text-[11px] font-medium text-slate-300 line-clamp-1">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Wellness & Hydration Goal Block */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 space-y-4">
+        <h3 className="text-xs font-bold text-rose-400 uppercase tracking-widest">Wellness Center</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-2xl border border-slate-800">
+            <div className="w-9 h-9 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-400 text-lg">💧</div>
+            <div className="flex-1">
+              <p className="text-xs text-white font-medium">Hydration Goal</p>
+              <p className="text-[10px] text-slate-400">Last: 45m ago • Goal: 2.5L</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-2xl border border-slate-800">
+            <div className="w-9 h-9 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-lg">🧘</div>
+            <div className="flex-1">
+              <p className="text-xs text-white font-medium">Guided Breathing</p>
+              <p className="text-[10px] text-slate-400">Recommended after work</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Scheduled Reminders */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-amber-400" />
+            <h3 className="text-xs font-bold text-amber-400 uppercase tracking-widest">Scheduled Reminders</h3>
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium">
+            {reminders.filter(r => !r.completed).length} Pending
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {reminders.map((r) => (
+            <div
+              key={r.id}
+              className={`p-3 rounded-2xl border flex items-center justify-between transition-all ${
+                r.completed
+                  ? 'bg-slate-950/40 border-slate-800/50 opacity-60'
+                  : 'bg-slate-800/30 border-slate-800 hover:border-indigo-500/40'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => onToggleReminder(r.id)}
+                  className={`p-1 rounded-full transition-colors ${
+                    r.completed ? 'text-emerald-400' : 'text-slate-500 hover:text-cyan-400'
+                  }`}
+                >
+                  <CheckCircle2 className={`w-5 h-5 ${r.completed ? 'fill-emerald-400/20' : ''}`} />
+                </button>
+                <div>
+                  <div className={`text-xs font-medium ${r.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+                    {r.title}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">
+                    {r.date} • {r.time} ({r.category})
+                  </div>
+                </div>
+              </div>
+
+              <span className="text-[10px] text-indigo-300 font-medium px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">
+                {r.soundName || 'Default'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Goal Tracking */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest">Goal Tracking</h3>
+          <span className="text-[10px] text-cyan-400 font-semibold">Active Streaks 🔥</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          {habits.slice(0, 4).map((h) => (
+            <div key={h.id} className="p-3.5 rounded-2xl bg-slate-800/30 border border-slate-800">
+              <div className="text-xs font-medium text-slate-200">{h.title}</div>
+              <div className="w-full bg-slate-700/60 h-1.5 rounded-full mt-2.5">
+                <div className="bg-cyan-400 h-1.5 rounded-full w-3/4 shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+              </div>
+              <div className="flex items-center justify-between mt-2 text-[10px]">
+                <span className="text-slate-400">Streak: {h.currentStreak}d</span>
+                <span className="text-cyan-400 font-semibold">75% Complete</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
