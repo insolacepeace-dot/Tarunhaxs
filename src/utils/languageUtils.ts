@@ -64,8 +64,10 @@ export function detectTextLanguage(text: string, defaultMode: LanguageMode = 'hi
 export function cleanTextForSpeech(text: string): string {
   if (!text) return '';
 
-  // 1. Sanitize brand names so they don't get spelled out letter-by-letter (D-I-G-U-U A-I)
+  // 1. Sanitize brand names so they don't get spelled out letter-by-letter (D-I-G-U-U A-I or D I G U U)
   let cleaned = text
+    .replace(/\bD-I-G-U-U\s*A-I\b/gi, 'Digu AI')
+    .replace(/\bD-I-G-U-U\b/gi, 'Digu')
     .replace(/\bDIGUU\s*AI\b/gi, 'Digu AI')
     .replace(/\bDIGUU\b/gi, 'Digu')
     .replace(/\bDiguu\s*AI\b/gi, 'Digu AI')
@@ -74,6 +76,8 @@ export function cleanTextForSpeech(text: string): string {
   // If Gujarati script is present, convert "Digu" to "દીગુ" for native script phonetic reading
   if (/[\u0A80-\u0AFF]/.test(text)) {
     cleaned = cleaned.replace(/\bDigu\s*AI\b/gi, 'દીગુ AI').replace(/\bDigu\b/gi, 'દીગુ');
+  } else if (/[\u0900-\u097F]/.test(text)) {
+    cleaned = cleaned.replace(/\bDigu\s*AI\b/gi, 'दीगू AI').replace(/\bDigu\b/gi, 'दीगू');
   }
 
   // 2. Strip out emojis and special unicode symbols to prevent awkward pauses or verbalizing codes
@@ -89,16 +93,33 @@ export function cleanTextForSpeech(text: string): string {
 }
 
 /**
- * Get Persona-based TTS Pitch and Speed Settings
+ * Get Persona-based TTS Pitch and Speed Settings with Male / Female Engine Support
  */
 export function getPersonaVoiceSettings(
   personality: PersonalityType,
-  baseSpeed: number = 1.0
+  baseSpeed: number = 1.0,
+  voiceGender: 'male' | 'female' = 'male'
 ): { pitch: number; rate: number } {
+  if (voiceGender === 'male') {
+    switch (personality) {
+      case 'Warm Bestie':
+        return { pitch: 0.88, rate: baseSpeed * 1.0 }; // Warm Indian Male Pitch
+      case 'Professional AI':
+        return { pitch: 0.82, rate: baseSpeed * 1.05 };
+      case 'Chill Buddy':
+        return { pitch: 0.78, rate: baseSpeed * 0.95 };
+      case 'Guru Coach':
+        return { pitch: 0.85, rate: baseSpeed * 0.9 };
+      default:
+        return { pitch: 0.85, rate: baseSpeed };
+    }
+  }
+
+  // Female Voice Engine Settings
   switch (personality) {
     case 'Warm Bestie':
       return {
-        pitch: 1.25, // Sweet, cute, affectionate GF pitch
+        pitch: 1.25, // Sweet, cute, affectionate pitch
         rate: baseSpeed * 1.0,
       };
     case 'Professional AI':

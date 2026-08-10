@@ -118,6 +118,8 @@ export default function App() {
           text: cleanedText,
           languageMode: userProfile.languageMode,
           personality: userProfile.personality,
+          voiceGender: userProfile.voiceGender || 'male',
+          voiceStyle: userProfile.voiceStyle || 'Puck',
         }),
       });
 
@@ -159,7 +161,7 @@ export default function App() {
     const langInfo = detectTextLanguage(cleanedText, userProfile.languageMode);
     utterance.lang = langInfo.bcp47Tag;
 
-    const personaSettings = getPersonaVoiceSettings(userProfile.personality, userProfile.voiceSpeed || 1.0);
+    const personaSettings = getPersonaVoiceSettings(userProfile.personality, userProfile.voiceSpeed || 1.0, userProfile.voiceGender || 'male');
     utterance.pitch = personaSettings.pitch;
     utterance.rate = personaSettings.rate;
 

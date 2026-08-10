@@ -41,6 +41,27 @@ export const AvatarCompanion: React.FC<AvatarCompanionProps> = ({
 
       {/* Avatar Display Container with Animated Halo Rings */}
       <div className="relative group cursor-pointer my-1 z-10" onClick={onVoiceClick}>
+        {/* CSS Pulsing Radar Rings during Voice Interaction */}
+        {(isSpeaking || isListening) && (
+          <>
+            <div
+              className={`absolute -inset-4 rounded-full border animate-pulse-ring-1 pointer-events-none ${
+                isSpeaking ? 'border-pink-500/60 bg-pink-500/10' : 'border-cyan-400/60 bg-cyan-400/10'
+              }`}
+            />
+            <div
+              className={`absolute -inset-8 rounded-full border animate-pulse-ring-2 pointer-events-none ${
+                isSpeaking ? 'border-purple-500/50 bg-purple-500/10' : 'border-indigo-500/50 bg-indigo-500/10'
+              }`}
+            />
+            <div
+              className={`absolute -inset-12 rounded-full border animate-pulse-ring-3 pointer-events-none ${
+                isSpeaking ? 'border-pink-400/30' : 'border-cyan-300/30'
+              }`}
+            />
+          </>
+        )}
+
         {/* Animated Outer Pulse Ring */}
         <motion.div
           className="absolute -inset-3 rounded-full bg-gradient-to-r from-indigo-500 via-cyan-400 to-indigo-600 opacity-60 blur-md"

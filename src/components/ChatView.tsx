@@ -206,18 +206,37 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       {/* Input Field & Mic Trigger Bar */}
       <form onSubmit={handleSend} className="flex items-center gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onVoiceClick}
-          className={`p-3 rounded-full text-white transition-all shadow-lg ${
-            isListening
-              ? 'bg-cyan-500 shadow-cyan-500/40 animate-pulse'
-              : 'bg-gradient-to-r from-indigo-500 to-cyan-500 shadow-indigo-500/30 hover:scale-105'
-          }`}
-          title="Voice Speech Input"
-        >
-          <Mic className="w-5 h-5" />
-        </button>
+        <div className="relative">
+          {(isListening || isSpeaking) && (
+            <>
+              <div
+                className={`absolute -inset-1.5 rounded-full border animate-pulse-ring-1 pointer-events-none ${
+                  isSpeaking ? 'border-pink-500/60 bg-pink-500/10' : 'border-cyan-400/60 bg-cyan-400/10'
+                }`}
+              />
+              <div
+                className={`absolute -inset-3 rounded-full border animate-pulse-ring-2 pointer-events-none ${
+                  isSpeaking ? 'border-purple-500/50 bg-purple-500/10' : 'border-indigo-500/50 bg-indigo-500/10'
+                }`}
+              />
+            </>
+          )}
+
+          <button
+            type="button"
+            onClick={onVoiceClick}
+            className={`relative z-10 p-3 rounded-full text-white transition-all shadow-lg ${
+              isSpeaking
+                ? 'bg-gradient-to-r from-pink-500 to-purple-600 shadow-pink-500/40 animate-pulse'
+                : isListening
+                ? 'bg-cyan-500 shadow-cyan-500/40 animate-pulse'
+                : 'bg-gradient-to-r from-indigo-500 to-cyan-500 shadow-indigo-500/30 hover:scale-105'
+            }`}
+            title="Voice Speech Input"
+          >
+            {isSpeaking ? <Volume2 className="w-5 h-5 text-pink-100 animate-bounce" /> : <Mic className="w-5 h-5" />}
+          </button>
+        </div>
 
         <input
           type="text"

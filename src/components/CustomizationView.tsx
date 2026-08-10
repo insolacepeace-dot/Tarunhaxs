@@ -71,6 +71,31 @@ export const CustomizationView: React.FC<CustomizationViewProps> = ({
 
   return (
     <div className="space-y-6 pb-24 px-4 max-w-2xl mx-auto pt-2">
+      {/* 0. USER IDENTITY & CUSTOM NAME SETTING */}
+      <div className="p-4 rounded-3xl bg-slate-900/90 border border-indigo-500/30 shadow-xl space-y-3">
+        <div className="flex items-center gap-2">
+          <User className="w-5 h-5 text-indigo-400" />
+          <h3 className="text-sm font-bold text-slate-100">User Identity & Address Name</h3>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-slate-300">Your Name (How DIGUU Addresses You)</label>
+          <div className="relative">
+            <input
+              type="text"
+              value={userProfile.name || ''}
+              onChange={(e) => onUpdateProfile({ name: e.target.value, nickname: e.target.value })}
+              placeholder="Enter your name (e.g. Tarun)"
+              className="w-full px-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+            <Sparkles className="w-4 h-4 text-indigo-400 absolute right-3.5 top-3 pointer-events-none" />
+          </div>
+          <p className="text-[11px] text-indigo-300/80">
+            DIGUU AI will directly speak to you using this name in every response (e.g. "Hii {userProfile.name || 'Tarun'} 💕").
+          </p>
+        </div>
+      </div>
+
       {/* 1. DIGUU AVATAR CUSTOMIZER */}
       <div className="p-4 rounded-3xl bg-slate-900/90 border border-pink-500/20 shadow-xl space-y-4">
         <div className="flex items-center gap-2">
@@ -203,9 +228,54 @@ export const CustomizationView: React.FC<CustomizationViewProps> = ({
           </div>
         </div>
 
+        {/* Voice Gender Toggle Switcher */}
+        <div className="space-y-2 pt-1 border-t border-slate-800">
+          <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+            <span>Voice Gender Switcher</span>
+            <span className="text-[10px] text-pink-400 font-semibold uppercase">Dynamic TTS Allocation</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => onUpdateProfile({ voiceGender: 'female', voiceStyle: 'Kore' })}
+              className={`p-3 rounded-2xl border text-left transition-all ${
+                userProfile.voiceGender === 'female'
+                  ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border-pink-500 text-slate-100 shadow-md ring-1 ring-pink-500/50'
+                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-pink-300">Female Voice 👩</span>
+                {userProfile.voiceGender === 'female' && <Check className="w-4 h-4 text-pink-400" />}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-1">
+                hi-IN-Wavenet-A / gu-IN-Wavenet-A (Cute & Sweet)
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onUpdateProfile({ voiceGender: 'male', voiceStyle: 'Puck' })}
+              className={`p-3 rounded-2xl border text-left transition-all ${
+                userProfile.voiceGender === 'male'
+                  ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-500 text-slate-100 shadow-md ring-1 ring-cyan-500/50'
+                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-cyan-300">Male Voice 👨</span>
+                {userProfile.voiceGender === 'male' && <Check className="w-4 h-4 text-cyan-400" />}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-1">
+                hi-IN-Wavenet-B / gu-IN-Wavenet-B (Warm & Deep)
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Voice Style & Speed */}
         <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-300">Voice Tone Style</label>
+          <label className="text-xs font-bold text-slate-300">Voice Tone Style Preset</label>
           <div className="flex gap-2">
             {['Kore (Warm Female)', 'Zephyr (Soft Female)', 'Puck (Energetic)'].map((vName) => {
               const code = vName.split(' ')[0] as any;

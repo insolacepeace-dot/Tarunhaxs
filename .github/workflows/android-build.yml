@@ -1,4 +1,4 @@
-name: Build DIGUU AI Android APK & Applet
+name: Build DIGUU AI Android APK
 
 on:
   push:
