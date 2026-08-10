@@ -155,7 +155,8 @@ export default function App() {
     setIsChatLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      const apiBase = localStorage.getItem('diguu_api_base_url') || '';
+      const response = await fetch(`${apiBase}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -211,7 +212,8 @@ export default function App() {
   const handleGenerateBriefing = async (type: 'morning' | 'evening') => {
     setIsBriefingLoading(true);
     try {
-      const res = await fetch('/api/briefing', {
+      const apiBase = localStorage.getItem('diguu_api_base_url') || '';
+      const res = await fetch(`${apiBase}/api/briefing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

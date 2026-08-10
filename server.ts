@@ -7,8 +7,25 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Safe __filename and __dirname for both ESM and CommonJS
+const getCurrentDirnameAndFilename = () => {
+  try {
+    // If running in ESM
+    if (import.meta && import.meta.url) {
+      const fn = fileURLToPath(import.meta.url);
+      return { __filename: fn, __dirname: path.dirname(fn) };
+    }
+  } catch (e) {
+    // ignore
+  }
+  // Fallback to CommonJS global variables
+  return {
+    __filename: typeof __filename !== "undefined" ? __filename : "",
+    __dirname: typeof __dirname !== "undefined" ? __dirname : ""
+  };
+};
+
+const { __filename, __dirname } = getCurrentDirnameAndFilename();
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
