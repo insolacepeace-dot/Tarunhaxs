@@ -13,18 +13,23 @@ import {
 
 export const initialUserProfile: UserProfile = {
   name: 'Tarun',
-  nickname: 'Jaan',
+  nickname: 'Tarun',
+  aiName: 'DIGUU AI',
+  voiceGender: 'male',
   location: 'Ahmedabad, India',
   occupation: 'Developer',
   theme: 'neon-cyber',
   personality: 'Warm Bestie',
   languageMode: 'hinglish',
-  voiceStyle: 'Kore',
+  voiceStyle: 'Puck',
   voiceSpeed: 1.0,
   wakeWordEnabled: true,
   avatarVariant: 'main',
-  avatarOutfit: 'Pink Sweats & Bow',
+  avatarOutfit: 'Pink Sweats & Bow 🎀',
   haloColor: '#ec4899',
+  whatsappAutoReplyEnabled: false,
+  whatsappAutoReplyRule: 'all',
+  whatsappCustomContacts: 'Aarav, Mom, Work',
 };
 
 export const initialMemories: MemoryItem[] = [

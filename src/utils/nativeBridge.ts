@@ -162,7 +162,7 @@ export async function checkNativePermissions(): Promise<Partial<PermissionStatus
 /**
  * Redirect User to Android System Settings for Restricted Special Permissions
  */
-export function openSpecialSystemSettings(settingType: 'accessibility' | 'overlay' | 'usage'): void {
+export function openSpecialSystemSettings(settingType: 'accessibility' | 'overlay' | 'usage' | 'notification_listener'): void {
   try {
     let intentUri = 'intent:#Intent;action=android.settings.SETTINGS;end';
 
@@ -172,12 +172,49 @@ export function openSpecialSystemSettings(settingType: 'accessibility' | 'overla
       intentUri = 'intent:#Intent;action=android.settings.action.MANAGE_OVERLAY_PERMISSION;end';
     } else if (settingType === 'usage') {
       intentUri = 'intent:#Intent;action=android.settings.USAGE_ACCESS_SETTINGS;end';
+    } else if (settingType === 'notification_listener') {
+      intentUri = 'intent:#Intent;action=android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS;end';
     }
 
     window.location.href = intentUri;
   } catch (err) {
     console.warn(`Could not launch intent for ${settingType}:`, err);
   }
+}
+
+/**
+ * Generate AI WhatsApp Auto-Reply via server endpoint
+ */
+export async function generateWhatsAppAIReply(
+  sender: string,
+  message: string,
+  userName: string = 'Tarun',
+  languageMode: string = 'hinglish',
+  rule: string = 'all',
+  customContacts: string = ''
+): Promise<string> {
+  try {
+    const response = await fetch('/api/whatsapp-autoreply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender,
+        message,
+        userName,
+        languageMode,
+        rule,
+        customContacts,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.reply || `Hii ${sender}! ${userName} is currently away. Will get back to you shortly!`;
+    }
+  } catch (err) {
+    console.warn('Error calling WhatsApp AutoReply endpoint:', err);
+  }
+  return `Hii! ${userName} is currently busy and will reply to you soon.`;
 }
 
 /**

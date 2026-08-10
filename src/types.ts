@@ -60,6 +60,8 @@ export interface HabitGoal {
 export interface UserProfile {
   name: string;
   nickname: string;
+  aiName?: string;
+  voiceGender?: 'male' | 'female';
   location: string;
   occupation: string;
   theme: 'neon-cyber' | 'dark-velvet' | 'violet-glow' | 'sunset-gold' | 'light-cyber';
@@ -71,6 +73,19 @@ export interface UserProfile {
   avatarVariant: string;
   avatarOutfit: string;
   haloColor: string;
+  whatsappAutoReplyEnabled?: boolean;
+  whatsappAutoReplyRule?: 'all' | 'contacts_only' | 'busy_mode' | 'custom_list';
+  whatsappCustomContacts?: string;
+}
+
+export interface WhatsAppAutoReplyLog {
+  id: string;
+  sender: string;
+  incomingMessage: string;
+  aiResponse: string;
+  timestamp: string;
+  rule: string;
+  status: 'sent' | 'simulated';
 }
 
 export interface AppPermissions {

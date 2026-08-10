@@ -207,6 +207,48 @@ app.post("/api/creativity", async (req, res) => {
   }
 });
 
+// API: WhatsApp AI Auto-Reply Generation
+app.post("/api/whatsapp-autoreply", async (req, res) => {
+  try {
+    const { sender, message, userName, languageMode, rule, customContacts } = req.body;
+    const ai = getAiClient();
+
+    const targetUserName = userName || "Tarun";
+    const lang = languageMode || "hinglish";
+
+    const prompt = `You are an AI WhatsApp Auto-Reply assistant acting on behalf of ${targetUserName}.
+An incoming WhatsApp message was received from "${sender || "a contact"}": "${message || "Hii"}".
+
+Generate a concise, polite, natural, and contextual reply for WhatsApp in the voice of ${targetUserName}.
+Requirements:
+- Keep the response short (1 to 2 sentences maximum), perfect for a quick WhatsApp message.
+- Tone: Friendly, polite, and natural.
+- Language Mode: ${lang} (support Hindi, Hinglish, English, or Gujarati context as appropriate).
+- Address the message content directly and politely explain you will get back soon if busy.
+- Output ONLY the final reply message text directly without quotes, labels, or extra conversational filler.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: prompt,
+      config: {
+        systemInstruction: `You are an auto-reply generator for ${targetUserName}. Produce direct, concise WhatsApp replies in ${lang}.`,
+      },
+    });
+
+    const replyText = response.text
+      ? response.text.trim().replace(/^["']|["']$/g, "")
+      : `Hii! ${targetUserName} is currently occupied and will reply to you shortly.`;
+
+    res.json({ reply: replyText, sender, originalMessage: message });
+  } catch (error: any) {
+    console.error("Error in /api/whatsapp-autoreply:", error);
+    res.status(500).json({
+      error: error.message,
+      reply: `Hii! Thanks for your message. I am busy right now and will get back to you soon!`,
+    });
+  }
+});
+
 // API: Text To Speech (TTS) with Native Gujarati & Hindi Audio Models
 app.post("/api/tts", async (req, res) => {
   try {

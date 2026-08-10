@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   User, 
@@ -17,9 +17,17 @@ import {
   Github, 
   Twitter,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  MessageSquare,
+  Send,
+  Bot,
+  BellRing,
+  Filter,
+  CheckCircle,
+  Clock
 } from 'lucide-react';
-import { UserProfile, AppPermissions } from '../types';
+import { UserProfile, AppPermissions, WhatsAppAutoReplyLog } from '../types';
+import { openSpecialSystemSettings, generateWhatsAppAIReply } from '../utils/nativeBridge';
 
 import avatarMain from '../assets/images/diguu_avatar_main_1785882815230.jpg';
 import avatarWink from '../assets/images/diguu_avatar_wink_1785882896630.jpg';
@@ -37,6 +45,54 @@ export const CustomizationView: React.FC<CustomizationViewProps> = ({
   onUpdateProfile,
   onTogglePermission,
 }) => {
+  const [simSender, setSimSender] = useState('Aarav');
+  const [simMessage, setSimMessage] = useState('Bhai shaam ko milenge kya? Important kaam hai!');
+  const [simLoading, setSimLoading] = useState(false);
+  const [simReply, setSimReply] = useState<string | null>(null);
+  const [replyLogs, setReplyLogs] = useState<WhatsAppAutoReplyLog[]>([
+    {
+      id: 'log-1',
+      sender: 'Priya',
+      incomingMessage: 'Khana khaya aapne? Meeting kab khatam hogi?',
+      aiResponse: `Hii Priya! ${userProfile.name || 'Tarun'} is currently in a meeting. Will message you right after! 💕`,
+      timestamp: '10:42 AM',
+      rule: 'contacts_only',
+      status: 'sent',
+    },
+  ]);
+
+  const handleRunSimulator = async () => {
+    if (!simMessage.trim()) return;
+    setSimLoading(true);
+    setSimReply(null);
+    try {
+      const generated = await generateWhatsAppAIReply(
+        simSender || 'Friend',
+        simMessage,
+        userProfile.name || 'Tarun',
+        userProfile.languageMode || 'hinglish',
+        userProfile.whatsappAutoReplyRule || 'all',
+        userProfile.whatsappCustomContacts || ''
+      );
+      setSimReply(generated);
+
+      const newLog: WhatsAppAutoReplyLog = {
+        id: `log-${Date.now()}`,
+        sender: simSender || 'Contact',
+        incomingMessage: simMessage,
+        aiResponse: generated,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        rule: userProfile.whatsappAutoReplyRule || 'all',
+        status: 'simulated',
+      };
+      setReplyLogs((prev) => [newLog, ...prev.slice(0, 5)]);
+    } catch (e) {
+      console.error('Simulator error:', e);
+    } finally {
+      setSimLoading(false);
+    }
+  };
+
   const outfits = [
     'Pink Sweats & Bow 🎀',
     'Cyberpunk Neon Jacket ⚡',
@@ -93,6 +149,198 @@ export const CustomizationView: React.FC<CustomizationViewProps> = ({
           <p className="text-[11px] text-indigo-300/80">
             DIGUU AI will directly speak to you using this name in every response (e.g. "Hii {userProfile.name || 'Tarun'} 💕").
           </p>
+        </div>
+      </div>
+
+      {/* 0.5 WHATSAPP AI AUTO-REPLY AGENT */}
+      <div className="p-4 rounded-3xl bg-slate-900/90 border border-emerald-500/30 shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                <span>WhatsApp AI Auto-Reply Agent</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
+                  Android Native
+                </span>
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Automatically respond to WhatsApp notifications in the voice of {userProfile.name || 'Tarun'}
+              </p>
+            </div>
+          </div>
+
+          {/* Master Toggle */}
+          <button
+            type="button"
+            onClick={() => onUpdateProfile({ whatsappAutoReplyEnabled: !userProfile.whatsappAutoReplyEnabled })}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+              userProfile.whatsappAutoReplyEnabled ? 'bg-emerald-500' : 'bg-slate-800'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                userProfile.whatsappAutoReplyEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Android Notification Listener Permission Banner */}
+        <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <BellRing className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="text-[11px] text-slate-300">
+              <span className="font-semibold text-slate-200">Android Notification Listener Service:</span>
+              <span className="block text-slate-400 text-[10px]">
+                Requires Android BIND_NOTIFICATION_LISTENER_SERVICE permission
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => openSpecialSystemSettings('notification_listener')}
+            className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-semibold shrink-0 transition-colors cursor-pointer"
+          >
+            Grant Access ⚙️
+          </button>
+        </div>
+
+        {/* Custom Auto-Reply Rule Selection */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-300 flex items-center gap-1">
+            <Filter className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Auto-Reply Response Rules</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'all', label: '🌐 All Messages', desc: 'Reply to every incoming WhatsApp text' },
+              { id: 'contacts_only', label: '👥 Saved Contacts', desc: 'Reply only to known saved numbers' },
+              { id: 'busy_mode', label: '🌙 Busy / DND Mode', desc: 'Reply when busy or in focus mode' },
+              { id: 'custom_list', label: '📝 Custom List', desc: 'Filter specific target contact names' },
+            ].map((ruleItem) => (
+              <button
+                key={ruleItem.id}
+                type="button"
+                onClick={() => onUpdateProfile({ whatsappAutoReplyRule: ruleItem.id as any })}
+                className={`p-2.5 rounded-2xl border text-left transition-all ${
+                  (userProfile.whatsappAutoReplyRule || 'all') === ruleItem.id
+                    ? 'bg-emerald-500/20 border-emerald-500 text-slate-100 ring-1 ring-emerald-500/40'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="text-xs font-bold text-emerald-300 flex items-center justify-between">
+                  <span>{ruleItem.label}</span>
+                  {(userProfile.whatsappAutoReplyRule || 'all') === ruleItem.id && (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  )}
+                </div>
+                <div className="text-[10px] text-slate-400 mt-0.5">{ruleItem.desc}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Custom Contacts List Input */}
+          {(userProfile.whatsappAutoReplyRule === 'custom_list') && (
+            <div className="mt-2 space-y-1">
+              <label className="text-[11px] font-semibold text-slate-300">Allowed Contact Names (Comma Separated)</label>
+              <input
+                type="text"
+                value={userProfile.whatsappCustomContacts || ''}
+                onChange={(e) => onUpdateProfile({ whatsappCustomContacts: e.target.value })}
+                placeholder="e.g. Aarav, Mom, Priya, Rahul"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Live Simulator & Tester */}
+        <div className="p-3.5 rounded-2xl bg-slate-950 border border-emerald-500/20 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+              <Bot className="w-4 h-4 text-emerald-400" />
+              <span>Test AI WhatsApp Auto-Reply</span>
+            </span>
+            <span className="text-[10px] text-slate-400">Gemini 3.6 Flash Engine</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <input
+              type="text"
+              value={simSender}
+              onChange={(e) => setSimSender(e.target.value)}
+              placeholder="Sender Name"
+              className="col-span-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
+            />
+            <input
+              type="text"
+              value={simMessage}
+              onChange={(e) => setSimMessage(e.target.value)}
+              placeholder="Test WhatsApp Message..."
+              className="col-span-2 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleRunSimulator}
+            disabled={simLoading}
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+          >
+            {simLoading ? (
+              <span>Generating AI Reply...</span>
+            ) : (
+              <>
+                <Send className="w-3.5 h-3.5" />
+                <span>Simulate WhatsApp Notification & Generate Reply</span>
+              </>
+            )}
+          </button>
+
+          {/* Generated Reply Preview Box */}
+          {simReply && (
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/40 space-y-1.5"
+            >
+              <div className="flex items-center justify-between text-[11px] text-emerald-300 font-bold">
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>AI Generated WhatsApp Reply:</span>
+                </span>
+                <span className="text-[10px] bg-emerald-500/30 px-2 py-0.5 rounded-full text-emerald-200">
+                  RemoteInput Sent
+                </span>
+              </div>
+              <p className="text-xs text-slate-100 font-medium italic">"{simReply}"</p>
+            </motion.div>
+          )}
+
+          {/* History Logs */}
+          {replyLogs.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-slate-900">
+              <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-emerald-400" />
+                <span>Recent Auto-Replies Log</span>
+              </span>
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                {replyLogs.map((log) => (
+                  <div key={log.id} className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] space-y-0.5">
+                    <div className="flex items-center justify-between text-slate-300">
+                      <span className="font-bold text-emerald-300">{log.sender}</span>
+                      <span className="text-[10px] text-slate-500">{log.timestamp}</span>
+                    </div>
+                    <p className="text-slate-400 line-clamp-1">In: "{log.incomingMessage}"</p>
+                    <p className="text-slate-200 font-semibold line-clamp-1 text-emerald-200">Out: "{log.aiResponse}"</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
