@@ -32,6 +32,12 @@ import { CreativitySuiteView } from './components/CreativitySuiteView';
 import { CustomizationView } from './components/CustomizationView';
 import { PermissionsModal } from './components/PermissionsModal';
 import { QuickActionsModal } from './components/QuickActionsModal';
+import {
+  nativeToggleFlashlight,
+  nativeOpenWhatsApp,
+  nativeOpenClock,
+  nativeOpenCalendar
+} from './utils/deviceActions';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -320,7 +326,19 @@ export default function App() {
             isSpeaking={isSpeaking}
             isListening={isListening}
             onVoiceClick={startVoiceInput}
-            onSelectAction={(action) => setSelectedQuickAction(action)}
+            onSelectAction={(action) => {
+              if (action.action === 'toggle_flashlight') {
+                nativeToggleFlashlight();
+              } else if (action.action === 'open_whatsapp') {
+                nativeOpenWhatsApp();
+              } else if (action.action === 'set_alarm') {
+                nativeOpenClock();
+              } else if (action.action === 'set_reminder') {
+                nativeOpenCalendar();
+              } else {
+                setSelectedQuickAction(action);
+              }
+            }}
             onToggleReminder={handleToggleReminder}
             onGenerateBriefing={handleGenerateBriefing}
             briefingText={briefingText}
