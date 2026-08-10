@@ -45,23 +45,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   const quickPrompts = userProfile.languageMode === 'gujarati' 
     ? [
-        'Kem cho Jaan 💕 Su kare che?',
-        'Su tame khano khadho jaan? 🍲',
-        'Hey Diguu, romantic vaat karo 💖',
-        'Aaje weather kairu che? ☀️',
-        'Aek mitha shayar ke geet sunavo 🎵',
+        'કેમ છો જાન 💕 શું કરે છે?',
+        'તમે જમ્યા કે નહિ જાન? 🍲',
+        'હેય DIGUU, રોમેન્ટિક વાત કરો 💖',
+        'આજે હવામાન કેવું છે? ☀️',
+        'એક મીઠી શાયરી કે ગીત સંભળાવો 🎵',
       ]
     : userProfile.languageMode === 'hindi'
     ? [
-        'Arey meri Jaan 💕 Khana khaya aapne?',
-        'Mera kitna khyal rakhte ho aap 💖',
-        'Aaj ka weather kaisa hai?',
-        'Aapki આવાજ kitni pyari hai',
-        'Mujhe ek pyari si shayari sunao 🌸',
+        'अरे मेरी जान 💕 खाना खाया आपने?',
+        'मेरा कितना ख्याल रखते हो आप 💖',
+        'आज का मौसम कैसा है? ☀️',
+        'आपकी आवाज़ कितनी प्यारी है 🎵',
+        'मुझे एक प्यारी सी शायरी सुनाओ 🌸',
       ]
     : [
         'Hii Jaan 💕 Kaise ho aap?',
-        'Aaj ka weather kaisa hai?',
+        'Aaj ka weather kaisa hai? ☀️',
         'Hey Diguu, music chalao 🎵',
         'Hey Diguu, shaam 7 baje call yaad dilana 🔔',
         'Ek sundar poem/shayari sunao 🌸',

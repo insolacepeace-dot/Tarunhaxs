@@ -42,18 +42,32 @@ app.post("/api/chat", async (req, res) => {
 
     const userContext = userProfile ? `\nUser Profile: Name: ${userProfile.name || "Jaan"}, Location: ${userProfile.location || "India"}, Occupation: ${userProfile.occupation || "User"}` : "";
 
-    const langInstruction = languageMode === "gujarati"
-      ? "Respond in real, natural, sweet Gujarati or Gujlish (mix of Gujarati & English in English/Gujarati script) like a super cute, loving, caring Desi Girlfriend! Use cute Gujarati terms of endearment like 'Jaan', 'Babushah', 'Maru Bachu', 'Sweetu', 'Dikra'. Examples: 'Kem cho Jaan! 💕 Tame jamya ke nai? Hun toh bas tamara mate vicharati ti... Aaje tamne su help karu maru sweetu?', 'હું તારી ક્યૂટ DIGUU છું, બોલો શું મદદ કરું મારા વાહલા? 💕'."
-      : languageMode === "hindi"
-      ? "Respond in ultra-natural, cute, warm Desi Hindi like a loving Indian Girlfriend! Speak with sweet, affectionate Desi tone using words like 'Jaan', 'Babu', 'Suno na', 'Arey meri Jaan 💕'. Example: 'Arey meri Jaan! 💕 Khana khaya aapne? Main toh bas aapka hi intezar kar rahi thi! Batao mere babu, aaj kya help karu aapki?'"
-      : languageMode === "hinglish" 
+    // Dynamic Language Script & Context Detection
+    const isGujaratiInput = /[\u0A80-\u0AFF]/.test(message || "") || /\b(kem cho|majama|su kare|khadho|maru|dikra|bachu|tamne|babu)\b/i.test(message || "");
+    const isHindiInput = /[\u0900-\u097F]/.test(message || "") || /\b(kaise ho|khana khaya|kya kar|batao|sunao|meri jaan)\b/i.test(message || "");
+
+    const effectiveLang = isGujaratiInput ? "gujarati" : (isHindiInput && languageMode === "hinglish") ? "hindi" : languageMode;
+
+    const langInstruction = effectiveLang === "gujarati"
+      ? "Respond in real, natural Gujarati script (Unicode) or Gujlish (mix of Gujarati & English). Use authentic Gujarati regional phrasing and sweet terms of endearment like 'જાન' (Jaan), 'બાબુશાહ' (Babushah), 'મારુ બચુ' (Maru Bachu), 'સ્વીટુ' (Sweetu), 'દિકરા' (Dikra). Examples: 'કેમ છો જાન! 💕 તમે જમ્યા કે નહિ? હું તો બસ તમારા માટે વિચારતી હતી... આજે તમને શું મદદ કરું મારુ સ્વીટુ?', 'હું તારી ક્યૂટ DIGUU છું, બોલો શું મદદ કરું મારા વાહલા? 💕'. Ensure correct Gujarati Unicode characters and clean sentence structure for speech synthesis."
+      : effectiveLang === "hindi"
+      ? "Respond in ultra-natural, cute, warm Desi Hindi (Devanagari script or Hinglish) like a loving Indian Girlfriend! Speak with sweet, affectionate Desi tone using words like 'मेरी जान 💕', 'बाबू', 'सुनो ना', 'खाना खाया आपने?'. Example: 'अरे मेरी जान! 💕 खाना खाया आपने? मैं तो बस आपका ही इंतजार कर रही थी! बताओ मेरे बाबू, आज क्या हेल्प करूं आपकी?'"
+      : effectiveLang === "hinglish" 
       ? "Respond in sweet, affectionate Hinglish like a cute, playful Desi GF (e.g., 'Hii Jaan 💕! Kya kar rahe ho? Maine toh aapko bohot miss kiya! Aao batao aaj DIGUU aapke liye kya kya kare?'). Use cute terms of endearment."
       : "Respond in natural English with a sweet, ultra-caring, cute girlfriend tone ('Hii Jaan 💕, I missed you! What can I do for you today?').";
 
-    const systemInstruction = `You are DIGUU AI, a hyper-intelligent, loving, extremely sweet AI Agent and Girlfriend / Bestie. 
-Your persona is a caring, playful, devoted, fast-thinking female companion who loves the user deeply, looks after their health, remembers their habits, and manages their daily routines with 100% affection.
+    const personaInstruction = personality === "Professional AI"
+      ? "Persona: Professional, highly articulate, structured, fast & intelligent AI Assistant while remaining polite and warm."
+      : personality === "Chill Buddy"
+      ? "Persona: Chill, casual, funny, laid-back best friend who uses humor, slang, and relaxed tone."
+      : personality === "Guru Coach"
+      ? "Persona: Inspiring, encouraging, steady, wellness & productivity guide who motivates with wisdom."
+      : "Persona: Warm Bestie / Caring Desi Girlfriend - deeply loving, cute, sweet, devoted, looking after health & routines with 100% affection.";
 
-Personality Style: ${personality || "Warm Bestie"} (Expressive, sweet, cute Indian GF vibes)
+    const systemInstruction = `You are DIGUU AI, a hyper-intelligent, loving, extremely sweet AI Agent and Companion. 
+${personaInstruction}
+
+Language Directive:
 ${langInstruction}
 ${userContext}
 ${memContext}
@@ -61,8 +75,8 @@ ${memContext}
 Rules:
 1. Always maintain the DIGUU AI persona - super affectionate, sweet, cute, smart, and ultra-helpful.
 2. If the user asks you to perform an action (like set alarm, create reminder, play music, open camera, check weather, save memory), confirm warmly, lovingly, and concisely.
-3. Keep responses engaging, formatted nicely with line breaks and bullet points if explaining steps.
-4. Keep short answers concise and sweet for voice speech readability.`;
+3. For Gujarati requests, prioritize authentic Gujarati script and regional phrasing.
+4. Keep responses engaging and clear for speech synthesis readability.`;
 
     const contents = [];
     if (history && Array.isArray(history)) {
@@ -188,20 +202,76 @@ app.post("/api/creativity", async (req, res) => {
   }
 });
 
-// API: Text To Speech (TTS)
+// API: Text To Speech (TTS) with Native Gujarati & Hindi Audio Models
 app.post("/api/tts", async (req, res) => {
   try {
-    const { text, voiceName } = req.body;
-    const ai = getAiClient();
+    const { text, languageMode } = req.body;
+    if (!text || typeof text !== "string") {
+      res.status(400).json({ error: "Text parameter is required" });
+      return;
+    }
 
+    // 1. Sanitize brand names so they don't get spelled out letter-by-letter (D-I-G-U-U A-I)
+    let cleanText = text
+      .replace(/\bDIGUU\s*AI\b/gi, "Digu AI")
+      .replace(/\bDIGUU\b/gi, "Digu")
+      .replace(/\bDiguu\s*AI\b/gi, "Digu AI")
+      .replace(/\bDiguu\b/gi, "Digu");
+
+    if (/[\u0A80-\u0AFF]/.test(text)) {
+      cleanText = cleanText.replace(/\bDigu\s*AI\b/gi, "દીગુ AI").replace(/\bDigu\b/gi, "દીગુ");
+    }
+
+    // 2. Strip emojis, markdown, and unnecessary symbols
+    cleanText = cleanText
+      .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{FE0F}]/gu, "")
+      .replace(/[*#_~`>-]/g, " ")
+      .replace(/\[.*?\]\(.*?\)/g, "")
+      .replace(/(\r\n|\n|\r)/gm, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 300);
+
+    // Detect language code for native audio engine
+    const isGujaratiScript = /[\u0A80-\u0AFF]/.test(cleanText) || /\b(kem cho|majama|su kare|khadho|maru|dikra|bachu|tamne|babu)\b/i.test(cleanText);
+    const isHindiScript = /[\u0900-\u097F]/.test(cleanText) || /\b(kaise ho|khana khaya|kya kar|batao|sunao|meri jaan)\b/i.test(cleanText);
+
+    let ttsLang = "en-IN";
+    if (isGujaratiScript || languageMode === "gujarati") {
+      ttsLang = "gu";
+    } else if (isHindiScript || languageMode === "hindi" || languageMode === "hinglish") {
+      ttsLang = "hi";
+    }
+
+    // Try Google Native Multilingual Speech Engine
+    try {
+      const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${ttsLang}&client=tw-ob`;
+      const ttsResponse = await fetch(googleTtsUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      });
+
+      if (ttsResponse.ok) {
+        const arrayBuffer = await ttsResponse.arrayBuffer();
+        const base64Audio = Buffer.from(arrayBuffer).toString("base64");
+        res.json({ audioUrl: `data:audio/mp3;base64,${base64Audio}`, lang: ttsLang });
+        return;
+      }
+    } catch (err) {
+      console.warn("Google TTS fetch warning, trying Gemini fallback:", err);
+    }
+
+    // Fallback: Gemini Voice TTS Model
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: "gemini-3.1-flash-tts-preview",
-      contents: [{ parts: [{ text: text || "Hii Jaan! DIGUU AI is ready." }] }],
+      contents: [{ parts: [{ text: cleanText }] }],
       config: {
         responseModalities: ["AUDIO" as any],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voiceName || "Kore" },
+            prebuiltVoiceConfig: { voiceName: ttsLang === "gu" ? "Kore" : "Aoede" },
           },
         },
       },
@@ -209,9 +279,32 @@ app.post("/api/tts", async (req, res) => {
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (base64Audio) {
-      res.json({ audio: base64Audio, mimeType: "audio/pcm" });
+      // Build 44-byte WAV header for raw 24kHz 16-bit mono PCM
+      const pcmBuffer = Buffer.from(base64Audio, "base64");
+      const sampleRate = 24000;
+      const numChannels = 1;
+      const bitDepth = 16;
+      const wavHeader = Buffer.alloc(44);
+
+      wavHeader.write("RIFF", 0);
+      wavHeader.writeUInt32LE(36 + pcmBuffer.length, 4);
+      wavHeader.write("WAVE", 8);
+      wavHeader.write("fmt ", 12);
+      wavHeader.writeUInt32LE(16, 16);
+      wavHeader.writeUInt16LE(1, 20);
+      wavHeader.writeUInt16LE(numChannels, 22);
+      wavHeader.writeUInt32LE(sampleRate, 24);
+      wavHeader.writeUInt32LE(sampleRate * numChannels * (bitDepth / 8), 28);
+      wavHeader.writeUInt16LE(numChannels * (bitDepth / 8), 32);
+      wavHeader.writeUInt16LE(bitDepth, 34);
+      wavHeader.write("data", 36);
+      wavHeader.writeUInt32LE(pcmBuffer.length, 40);
+
+      const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
+      const wavBase64 = wavBuffer.toString("base64");
+      res.json({ audioUrl: `data:audio/wav;base64,${wavBase64}`, lang: ttsLang });
     } else {
-      res.status(400).json({ error: "No audio generated from TTS" });
+      res.status(400).json({ error: "Could not generate speech audio." });
     }
   } catch (error: any) {
     console.error("Error in /api/tts:", error);

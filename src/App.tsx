@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   initialUserProfile, 
   initialMemories, 
@@ -33,6 +33,12 @@ import { CustomizationView } from './components/CustomizationView';
 import { PermissionsModal } from './components/PermissionsModal';
 import { QuickActionsModal } from './components/QuickActionsModal';
 import { requestNativeAndroidPermissions } from './utils/nativeBridge';
+
+import { 
+  detectTextLanguage, 
+  cleanTextForSpeech, 
+  getPersonaVoiceSettings 
+} from './utils/languageUtils';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -83,41 +89,131 @@ export default function App() {
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [selectedQuickAction, setSelectedQuickAction] = useState<QuickActionItem | null>(null);
 
-  // Speech Synthesis Helper
-  const speakText = (text: string) => {
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Natural Audio Speech Helper using Server-Side TTS Engine & HTML5 Audio
+  const speakText = async (text: string) => {
+    if (!text) return;
+
+    // Stop previous playing audio or browser speech
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause();
+      activeAudioRef.current = null;
+    }
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = userProfile.voiceSpeed || 1.0;
-      utterance.pitch = 1.25; // Sweet, cute, cheerful GF tone
-
-      // Try selecting Indian female or Gujarati/Hindi voice if available
-      const voices = window.speechSynthesis.getVoices();
-      const isGujarati = userProfile.languageMode === 'gujarati';
-      const isHindi = userProfile.languageMode === 'hindi' || userProfile.languageMode === 'hinglish';
-
-      let selectedVoice = null;
-      if (isGujarati) {
-        selectedVoice = voices.find(v => v.lang.includes('gu') || v.name.includes('Gujarati'));
-      }
-      if (!selectedVoice && (isHindi || isGujarati)) {
-        selectedVoice = voices.find(v => v.lang.includes('hi') || v.name.includes('Hindi') || v.name.includes('Google हिन्दी'));
-      }
-      if (!selectedVoice) {
-        selectedVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Google UK English Female') || v.name.includes('Samantha') || v.name.includes('Zira') || v.lang.includes('en-IN'));
-      }
-
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
-      }
-
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-
-      window.speechSynthesis.speak(utterance);
     }
+
+    const cleanedText = cleanTextForSpeech(text);
+    if (!cleanedText) return;
+
+    setIsSpeaking(true);
+
+    try {
+      // Call Server-Side Multilingual Audio Endpoint
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: cleanedText,
+          languageMode: userProfile.languageMode,
+          personality: userProfile.personality,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.audioUrl) {
+          const audio = new Audio(data.audioUrl);
+          audio.playbackRate = userProfile.voiceSpeed || 1.0;
+          activeAudioRef.current = audio;
+
+          audio.onended = () => {
+            setIsSpeaking(false);
+            activeAudioRef.current = null;
+          };
+          audio.onerror = () => {
+            console.warn('Audio playback error, falling back to WebSpeech');
+            fallbackWebSpeech(cleanedText);
+          };
+
+          await audio.play();
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Server TTS fetch failed, resorting to client fallback:', err);
+    }
+
+    // Client-side WebSpeech fallback if server audio is unreachable
+    fallbackWebSpeech(cleanedText);
   };
+
+  const fallbackWebSpeech = (cleanedText: string) => {
+    if (!('speechSynthesis' in window)) {
+      setIsSpeaking(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(cleanedText);
+    const langInfo = detectTextLanguage(cleanedText, userProfile.languageMode);
+    utterance.lang = langInfo.bcp47Tag;
+
+    const personaSettings = getPersonaVoiceSettings(userProfile.personality, userProfile.voiceSpeed || 1.0);
+    utterance.pitch = personaSettings.pitch;
+    utterance.rate = personaSettings.rate;
+
+    const voices = window.speechSynthesis.getVoices();
+    let selectedVoice: SpeechSynthesisVoice | null = null;
+
+    if (langInfo.detectedLang === 'gujarati') {
+      selectedVoice = voices.find(v => 
+        v.lang.toLowerCase().startsWith('gu') || 
+        v.name.toLowerCase().includes('gujarati') || 
+        v.name.includes('ગુજરાતી')
+      ) || null;
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => 
+          v.lang.toLowerCase().startsWith('hi') || 
+          v.name.toLowerCase().includes('hindi')
+        ) || null;
+      }
+    } else if (langInfo.detectedLang === 'hindi' || langInfo.detectedLang === 'hinglish') {
+      selectedVoice = voices.find(v => 
+        v.lang.toLowerCase().startsWith('hi') || 
+        v.name.toLowerCase().includes('hindi')
+      ) || null;
+    }
+
+    // Default fallback to Indian English voice before any standard system voice
+    if (!selectedVoice) {
+      selectedVoice = voices.find(v => 
+        v.lang.toLowerCase().includes('en-in') || 
+        v.name.toLowerCase().includes('india') || 
+        v.name.toLowerCase().includes('hindi')
+      ) || null;
+    }
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Pre-fetch Speech Synthesis Voices on App Mount
+  useEffect(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+  }, []);
 
   // Web Speech Recognition for Voice Input
   const startVoiceInput = () => {
@@ -149,7 +245,7 @@ export default function App() {
       setTimeout(() => {
         setIsListening(false);
         const fallbackText = userProfile.languageMode === 'gujarati'
-          ? 'Kem cho Jaan 💕 Aaje havaaman kevo che?'
+          ? 'કેમ છો જાન 💕 આજે હવામાન કેવું છે?'
           : 'Hii Jaan 💕 Khana khaya aapne? Aaj ka weather batao!';
         handleSendMessage(fallbackText);
       }, 2000);
@@ -304,9 +400,44 @@ export default function App() {
     setUserProfile((prev) => ({ ...prev, ...updated }));
   };
 
-  // Permission Toggle Handler
-  const handleTogglePermission = (key: keyof AppPermissions) => {
-    setPermissions((prev) => ({ ...prev, [key]: !prev[key] }));
+  // Permission Toggle Handler with Real Native Android Request Trigger
+  const handleTogglePermission = async (key: keyof AppPermissions) => {
+    const nextState = !permissions[key];
+    setPermissions((prev) => ({ ...prev, [key]: nextState }));
+
+    if (nextState) {
+      if (key === 'microphone') {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+          setPermissions((prev) => ({ ...prev, microphone: true }));
+        } catch (e) {
+          console.warn('Microphone permission denied:', e);
+          setPermissions((prev) => ({ ...prev, microphone: false }));
+        }
+      } else if (key === 'camera') {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          stream.getTracks().forEach((t) => t.stop());
+          setPermissions((prev) => ({ ...prev, camera: true }));
+        } catch (e) {
+          console.warn('Camera permission denied:', e);
+          setPermissions((prev) => ({ ...prev, camera: false }));
+        }
+      } else if (key === 'location') {
+        if ('geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            () => setPermissions((prev) => ({ ...prev, location: true })),
+            () => setPermissions((prev) => ({ ...prev, location: false }))
+          );
+        }
+      } else if (key === 'notifications') {
+        if ('Notification' in window) {
+          const res = await Notification.requestPermission();
+          setPermissions((prev) => ({ ...prev, notifications: res === 'granted' }));
+        }
+      }
+    }
   };
 
   return (
