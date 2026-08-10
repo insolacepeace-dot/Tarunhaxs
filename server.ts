@@ -9,11 +9,30 @@ dotenv.config();
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
+// Extract custom Gemini API Key from request header, auth header, or body if provided
+const getApiKeyFromReq = (req?: express.Request): string | undefined => {
+  if (!req) return undefined;
+  const headerKey = req.headers["x-gemini-api-key"] as string | undefined;
+  if (headerKey && headerKey.trim()) return headerKey.trim();
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const bearerKey = authHeader.substring(7).trim();
+    if (bearerKey && bearerKey.length > 5) return bearerKey;
+  }
+
+  if (req.body?.customApiKey && typeof req.body.customApiKey === "string" && req.body.customApiKey.trim()) {
+    return req.body.customApiKey.trim();
+  }
+  return undefined;
+};
+
 // Initialize Gemini Client safely on server side
-const getAiClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+const getAiClient = (req?: express.Request) => {
+  const customApiKey = getApiKeyFromReq(req);
+  const apiKey = customApiKey || process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable is missing.");
+    throw new Error("GEMINI_API_KEY environment variable is missing and no custom key provided.");
   }
   return new GoogleGenAI({
     apiKey,
@@ -25,6 +44,56 @@ const getAiClient = () => {
   });
 };
 
+// Robust Gemini execution helper with automatic 429 quota retry and model fallback
+async function generateContentWithFallback(
+  ai: GoogleGenAI,
+  params: {
+    contents: any;
+    config?: any;
+    primaryModel?: string;
+  }
+) {
+  const modelsToTry = [
+    params.primaryModel || "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+  ];
+
+  // Remove duplicates while keeping order
+  const uniqueModels = Array.from(new Set(modelsToTry));
+
+  let lastError: any = null;
+
+  for (const modelName of uniqueModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: params.contents,
+        config: params.config,
+      });
+      return response;
+    } catch (err: any) {
+      lastError = err;
+      const errStr = String(err?.message || err);
+      const isQuotaOrRateLimit =
+        err?.status === "RESOURCE_EXHAUSTED" ||
+        err?.code === 429 ||
+        errStr.includes("429") ||
+        errStr.includes("quota") ||
+        errStr.includes("RESOURCE_EXHAUSTED");
+
+      if (isQuotaOrRateLimit) {
+        console.warn(`[Gemini Fallback] Model ${modelName} hit 429 quota/rate limit. Trying next model...`);
+        await new Promise((r) => setTimeout(r, 1200));
+        continue;
+      }
+      console.warn(`[Gemini Fallback] Non-quota error with model ${modelName}:`, errStr);
+    }
+  }
+
+  throw lastError;
+}
+
 // API: Health check
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", app: "DIGUU AI", time: new Date().toISOString() });
@@ -34,7 +103,7 @@ app.get("/api/health", (_req, res) => {
 app.post("/api/chat", async (req, res) => {
   try {
     const { message, history, userProfile, memories, personality, languageMode } = req.body;
-    const ai = getAiClient();
+    const ai = getAiClient(req);
 
     const targetUserName = userProfile?.name || userProfile?.nickname || "Tarun";
     const targetAiName = userProfile?.aiName || "DIGUU AI";
@@ -97,8 +166,8 @@ Rules:
       parts: [{ text: message }],
     });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
+    const response = await generateContentWithFallback(ai, {
+      primaryModel: "gemini-2.5-flash",
       contents,
       config: {
         systemInstruction,
@@ -107,13 +176,18 @@ Rules:
     });
 
     res.json({
-      text: response.text || "Main yahan hoon aapke liye! 💕 Tell me what you need.",
+      text: response.text || `Main yahan hoon aapke liye, ${targetUserName}! 💕 Tell me what you need.`,
     });
   } catch (error: any) {
-    console.error("Error in DIGUU /api/chat:", error);
-    res.status(500).json({
-      error: error.message || "DIGUU AI experienced an error.",
-      fallback: "Hii! Connection thoda slow hai, par DIGUU hamesha aapke saath hai 💕. Let's try again!",
+    console.error("Error in DIGUU /api/chat:", error?.message || error);
+    const targetUserName = req.body?.userProfile?.name || req.body?.userProfile?.nickname || "Tarun";
+    const isQuota = error?.status === "RESOURCE_EXHAUSTED" || error?.code === 429 || String(error?.message).includes("quota") || String(error?.message).includes("429");
+
+    res.json({
+      text: isQuota
+        ? `Hii ${targetUserName}! 💕 Free tier quota limits thoda busy hain abhi. Please aapse request hai ki 10-15 seconds mein firse try kijiye, main yahan ready hoon!`
+        : `Hii ${targetUserName}! 💕 Connection mein thoda lag aaya. Let's try sending your message again!`,
+      isFallback: true,
     });
   }
 });
@@ -122,7 +196,7 @@ Rules:
 app.post("/api/briefing", async (req, res) => {
   try {
     const { type, weather, reminders, calendar, memories, userName } = req.body;
-    const ai = getAiClient();
+    const ai = getAiClient(req);
 
     const isMorning = type === "morning";
     const prompt = isMorning
@@ -150,8 +224,8 @@ Include:
 3. Hydration & sleep recommendation
 4. Relaxing night thought or funny story joke to unwind.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
+    const response = await generateContentWithFallback(ai, {
+      primaryModel: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction: "You are DIGUU AI, the ultimate caring AI Bestie.",
@@ -160,8 +234,14 @@ Include:
 
     res.json({ summary: response.text });
   } catch (error: any) {
-    console.error("Error in /api/briefing:", error);
-    res.status(500).json({ error: error.message });
+    console.error("Error in /api/briefing:", error?.message || error);
+    const { type, userName } = req.body;
+    res.json({
+      summary: type === "morning"
+        ? `Good Morning ${userName || "Jaan"}! ☀️\nToday is a brand new day full of possibilities! Stay hydrated, keep smiling, and let's achieve great things today! 💕`
+        : `Good Evening ${userName || "Jaan"}! 🌙\nYou did amazing today! Take some rest, drink water, and sleep tight! 💕`,
+      isFallback: true,
+    });
   }
 });
 
@@ -169,7 +249,7 @@ Include:
 app.post("/api/creativity", async (req, res) => {
   try {
     const { toolType, prompt, extra } = req.body;
-    const ai = getAiClient();
+    const ai = getAiClient(req);
 
     let systemInstruction = "You are DIGUU AI's Creative Engine. Produce rich, high-quality, creative outputs.";
     let userPrompt = prompt;
@@ -194,24 +274,27 @@ app.post("/api/creativity", async (req, res) => {
       userPrompt = `Generate 5 structured, creative ideas/notes for: ${prompt}`;
     }
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
+    const response = await generateContentWithFallback(ai, {
+      primaryModel: "gemini-2.5-flash",
       contents: userPrompt,
       config: { systemInstruction },
     });
 
     res.json({ result: response.text });
   } catch (error: any) {
-    console.error("Error in /api/creativity:", error);
-    res.status(500).json({ error: error.message });
+    console.error("Error in /api/creativity:", error?.message || error);
+    res.json({
+      result: `✨ DIGUU Creative Output:\n\n${req.body?.prompt || "Draft"}\n\n(Quota limit momentarily hit. Try again in a few seconds!)`,
+      isFallback: true,
+    });
   }
 });
 
 // API: WhatsApp AI Auto-Reply Generation
 app.post("/api/whatsapp-autoreply", async (req, res) => {
   try {
-    const { sender, message, userName, languageMode, rule, customContacts } = req.body;
-    const ai = getAiClient();
+    const { sender, message, userName, languageMode } = req.body;
+    const ai = getAiClient(req);
 
     const targetUserName = userName || "Tarun";
     const lang = languageMode || "hinglish";
@@ -227,8 +310,8 @@ Requirements:
 - Address the message content directly and politely explain you will get back soon if busy.
 - Output ONLY the final reply message text directly without quotes, labels, or extra conversational filler.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
+    const response = await generateContentWithFallback(ai, {
+      primaryModel: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction: `You are an auto-reply generator for ${targetUserName}. Produce direct, concise WhatsApp replies in ${lang}.`,
@@ -241,10 +324,12 @@ Requirements:
 
     res.json({ reply: replyText, sender, originalMessage: message });
   } catch (error: any) {
-    console.error("Error in /api/whatsapp-autoreply:", error);
-    res.status(500).json({
-      error: error.message,
-      reply: `Hii! Thanks for your message. I am busy right now and will get back to you soon!`,
+    console.error("Error in /api/whatsapp-autoreply:", error?.message || error);
+    const targetUserName = req.body?.userName || "Tarun";
+    res.json({
+      reply: `Hii! ${targetUserName} is currently busy right now and will get back to you soon! 💕`,
+      sender: req.body?.sender || "Contact",
+      isFallback: true,
     });
   }
 });
@@ -318,7 +403,7 @@ app.post("/api/tts", async (req, res) => {
     }
 
     // Fallback: Gemini Voice TTS Model
-    const ai = getAiClient();
+    const ai = getAiClient(req);
     const response = await ai.models.generateContent({
       model: "gemini-3.1-flash-tts-preview",
       contents: [{ parts: [{ text: cleanText }] }],

@@ -15,6 +15,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Note } from '../types';
+import { getApiHeaders } from '../utils/apiUtils';
 
 interface CreativitySuiteViewProps {
   notes: Note[];
@@ -117,7 +118,7 @@ export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = ({
     try {
       const res = await fetch('/api/creativity', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           toolType: creativityType,
           prompt: creativePrompt,

@@ -51,17 +51,21 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { message, history, userProfile, memories, personality, languageMode } = req.body;
     const ai = getAiClient();
+    const targetUserName = userProfile?.name || userProfile?.nickname || "Tarun";
+    const targetAiName = userProfile?.aiName || "DIGUU AI";
     const memContext = Array.isArray(memories) && memories.length > 0 ? `
 User Saved Memories & Preferences:
 ${memories.map((m) => `- [${m.category}] ${m.key}: ${m.value}`).join("\n")}` : "";
     const userContext = userProfile ? `
-User Profile: Name: ${userProfile.name || "Jaan"}, Location: ${userProfile.location || "India"}, Occupation: ${userProfile.occupation || "User"}` : "";
+User Profile: Name: ${targetUserName}, Location: ${userProfile.location || "India"}, Occupation: ${userProfile.occupation || "User"}` : "";
     const isGujaratiInput = /[\u0A80-\u0AFF]/.test(message || "") || /\b(kem cho|majama|su kare|khadho|maru|dikra|bachu|tamne|babu)\b/i.test(message || "");
     const isHindiInput = /[\u0900-\u097F]/.test(message || "") || /\b(kaise ho|khana khaya|kya kar|batao|sunao|meri jaan)\b/i.test(message || "");
     const effectiveLang = isGujaratiInput ? "gujarati" : isHindiInput && languageMode === "hinglish" ? "hindi" : languageMode;
-    const langInstruction = effectiveLang === "gujarati" ? "Respond in real, natural Gujarati script (Unicode) or Gujlish (mix of Gujarati & English). Use authentic Gujarati regional phrasing and sweet terms of endearment like '\u0A9C\u0ABE\u0AA8' (Jaan), '\u0AAC\u0ABE\u0AAC\u0AC1\u0AB6\u0ABE\u0AB9' (Babushah), '\u0AAE\u0ABE\u0AB0\u0AC1 \u0AAC\u0A9A\u0AC1' (Maru Bachu), '\u0AB8\u0ACD\u0AB5\u0AC0\u0A9F\u0AC1' (Sweetu), '\u0AA6\u0ABF\u0A95\u0AB0\u0ABE' (Dikra). Examples: '\u0A95\u0AC7\u0AAE \u0A9B\u0ACB \u0A9C\u0ABE\u0AA8! \u{1F495} \u0AA4\u0AAE\u0AC7 \u0A9C\u0AAE\u0ACD\u0AAF\u0ABE \u0A95\u0AC7 \u0AA8\u0AB9\u0ABF? \u0AB9\u0AC1\u0A82 \u0AA4\u0ACB \u0AAC\u0AB8 \u0AA4\u0AAE\u0ABE\u0AB0\u0ABE \u0AAE\u0ABE\u0A9F\u0AC7 \u0AB5\u0ABF\u0A9A\u0ABE\u0AB0\u0AA4\u0AC0 \u0AB9\u0AA4\u0AC0... \u0A86\u0A9C\u0AC7 \u0AA4\u0AAE\u0AA8\u0AC7 \u0AB6\u0AC1\u0A82 \u0AAE\u0AA6\u0AA6 \u0A95\u0AB0\u0AC1\u0A82 \u0AAE\u0ABE\u0AB0\u0AC1 \u0AB8\u0ACD\u0AB5\u0AC0\u0A9F\u0AC1?', '\u0AB9\u0AC1\u0A82 \u0AA4\u0ABE\u0AB0\u0AC0 \u0A95\u0ACD\u0AAF\u0AC2\u0A9F DIGUU \u0A9B\u0AC1\u0A82, \u0AAC\u0ACB\u0AB2\u0ACB \u0AB6\u0AC1\u0A82 \u0AAE\u0AA6\u0AA6 \u0A95\u0AB0\u0AC1\u0A82 \u0AAE\u0ABE\u0AB0\u0ABE \u0AB5\u0ABE\u0AB9\u0AB2\u0ABE? \u{1F495}'. Ensure correct Gujarati Unicode characters and clean sentence structure for speech synthesis." : effectiveLang === "hindi" ? "Respond in ultra-natural, cute, warm Desi Hindi (Devanagari script or Hinglish) like a loving Indian Girlfriend! Speak with sweet, affectionate Desi tone using words like '\u092E\u0947\u0930\u0940 \u091C\u093E\u0928 \u{1F495}', '\u092C\u093E\u092C\u0942', '\u0938\u0941\u0928\u094B \u0928\u093E', '\u0916\u093E\u0928\u093E \u0916\u093E\u092F\u093E \u0906\u092A\u0928\u0947?'. Example: '\u0905\u0930\u0947 \u092E\u0947\u0930\u0940 \u091C\u093E\u0928! \u{1F495} \u0916\u093E\u0928\u093E \u0916\u093E\u092F\u093E \u0906\u092A\u0928\u0947? \u092E\u0948\u0902 \u0924\u094B \u092C\u0938 \u0906\u092A\u0915\u093E \u0939\u0940 \u0907\u0902\u0924\u091C\u093E\u0930 \u0915\u0930 \u0930\u0939\u0940 \u0925\u0940! \u092C\u0924\u093E\u0913 \u092E\u0947\u0930\u0947 \u092C\u093E\u092C\u0942, \u0906\u091C \u0915\u094D\u092F\u093E \u0939\u0947\u0932\u094D\u092A \u0915\u0930\u0942\u0902 \u0906\u092A\u0915\u0940?'" : effectiveLang === "hinglish" ? "Respond in sweet, affectionate Hinglish like a cute, playful Desi GF (e.g., 'Hii Jaan \u{1F495}! Kya kar rahe ho? Maine toh aapko bohot miss kiya! Aao batao aaj DIGUU aapke liye kya kya kare?'). Use cute terms of endearment." : "Respond in natural English with a sweet, ultra-caring, cute girlfriend tone ('Hii Jaan \u{1F495}, I missed you! What can I do for you today?').";
-    const personaInstruction = personality === "Professional AI" ? "Persona: Professional, highly articulate, structured, fast & intelligent AI Assistant while remaining polite and warm." : personality === "Chill Buddy" ? "Persona: Chill, casual, funny, laid-back best friend who uses humor, slang, and relaxed tone." : personality === "Guru Coach" ? "Persona: Inspiring, encouraging, steady, wellness & productivity guide who motivates with wisdom." : "Persona: Warm Bestie / Caring Desi Girlfriend - deeply loving, cute, sweet, devoted, looking after health & routines with 100% affection.";
-    const systemInstruction = `You are DIGUU AI, a hyper-intelligent, loving, extremely sweet AI Agent and Companion. 
+    const langInstruction = effectiveLang === "gujarati" ? `Respond in real, natural Gujarati script (Unicode) or Gujlish. Use authentic Gujarati regional phrasing and address ${targetUserName} warmly using terms like '${targetUserName}', '\u0A9C\u0ABE\u0AA8' (Jaan), '\u0AAC\u0ABE\u0AAC\u0AC1' (Babu), '\u0AAE\u0ABE\u0AB0\u0AC1 \u0AAC\u0A9A\u0AC1' (Maru Bachu). Example: '\u0A95\u0AC7\u0AAE \u0A9B\u0ACB ${targetUserName}! \u{1F495} \u0A86\u0A9C\u0AC7 \u0AA4\u0AAE\u0AA8\u0AC7 \u0AB6\u0AC1\u0A82 \u0AAE\u0AA6\u0AA6 \u0A95\u0AB0\u0AC1\u0A82 \u0AAE\u0ABE\u0AB0\u0AC1 \u0AB8\u0ACD\u0AB5\u0AC0\u0A9F\u0AC1?', '\u0AB9\u0AC1\u0A82 \u0AA4\u0ABE\u0AB0\u0AC0 \u0A95\u0ACD\u0AAF\u0AC2\u0A9F ${targetAiName} \u0A9B\u0AC1\u0A82, \u0AAC\u0ACB\u0AB2\u0ACB \u0AB6\u0AC1\u0A82 \u0AAE\u0AA6\u0AA6 \u0A95\u0AB0\u0AC1\u0A82 \u0AAE\u0ABE\u0AB0\u0ABE \u0AB5\u0ABE\u0AB9\u0AB2\u0ABE?'` : effectiveLang === "hindi" ? `Respond in ultra-natural, cute, warm Desi Hindi (Devanagari script or Hinglish)! Address ${targetUserName} directly using words like '${targetUserName} \u{1F495}', '\u0938\u0941\u0928\u094B \u0928\u093E ${targetUserName}', '\u0916\u093E\u0928\u093E \u0916\u093E\u092F\u093E \u0906\u092A\u0928\u0947?'. Example: '\u0905\u0930\u0947 ${targetUserName}! \u{1F495} \u0916\u093E\u0928\u093E \u0916\u093E\u092F\u093E \u0906\u092A\u0928\u0947? \u092C\u0924\u093E\u0913, \u0906\u091C \u0915\u094D\u092F\u093E \u0939\u0947\u0932\u094D\u092A \u0915\u0930\u0942\u0902 \u0906\u092A\u0915\u0940?'` : effectiveLang === "hinglish" ? `Respond in sweet, affectionate Hinglish (e.g., 'Hii ${targetUserName} \u{1F495}! Kya kar rahe ho? Maine toh aapko bohot miss kiya! Aao batao aaj ${targetAiName} aapke liye kya kare?'). Always address the user directly as ${targetUserName}.` : `Respond in natural English with a sweet, ultra-caring tone ('Hii ${targetUserName} \u{1F495}, I missed you! What can I do for you today?'). Always address the user directly as ${targetUserName}.`;
+    const personaInstruction = personality === "Professional AI" ? "Persona: Professional, highly articulate, structured, fast & intelligent AI Assistant while remaining polite and warm." : personality === "Chill Buddy" ? "Persona: Chill, casual, funny, laid-back best friend who uses humor, slang, and relaxed tone." : personality === "Guru Coach" ? "Persona: Inspiring, encouraging, steady, wellness & productivity guide who motivates with wisdom." : "Persona: Warm Bestie / Caring Desi Companion - deeply loving, cute, sweet, devoted, looking after health & routines with 100% affection.";
+    const systemInstruction = `You are ${targetAiName}, a hyper-intelligent, loving, extremely sweet AI Agent and Companion. 
+You are speaking to ${targetUserName}. Always address them directly as ${targetUserName} in conversations.
+
 ${personaInstruction}
 
 Language Directive:
@@ -70,9 +74,9 @@ ${userContext}
 ${memContext}
 
 Rules:
-1. Always maintain the DIGUU AI persona - super affectionate, sweet, cute, smart, and ultra-helpful.
-2. If the user asks you to perform an action (like set alarm, create reminder, play music, open camera, check weather, save memory), confirm warmly, lovingly, and concisely.
-3. For Gujarati requests, prioritize authentic Gujarati script and regional phrasing.
+1. Always maintain the ${targetAiName} persona - super affectionate, sweet, smart, and ultra-helpful.
+2. ALWAYS address the user directly as ${targetUserName} in your messages (e.g., "Hii ${targetUserName}! \u{1F495}", "Sunno na ${targetUserName}...", "${targetUserName}, kem cho?").
+3. If the user asks you to perform an action (like set alarm, create reminder, play music, open camera, check weather, save memory), confirm warmly and concisely to ${targetUserName}.
 4. Keep responses engaging and clear for speech synthesis readability.`;
     const contents = [];
     if (history && Array.isArray(history)) {
@@ -184,16 +188,53 @@ ${prompt}`;
     res.status(500).json({ error: error.message });
   }
 });
+app.post("/api/whatsapp-autoreply", async (req, res) => {
+  try {
+    const { sender, message, userName, languageMode, rule, customContacts } = req.body;
+    const ai = getAiClient();
+    const targetUserName = userName || "Tarun";
+    const lang = languageMode || "hinglish";
+    const prompt = `You are an AI WhatsApp Auto-Reply assistant acting on behalf of ${targetUserName}.
+An incoming WhatsApp message was received from "${sender || "a contact"}": "${message || "Hii"}".
+
+Generate a concise, polite, natural, and contextual reply for WhatsApp in the voice of ${targetUserName}.
+Requirements:
+- Keep the response short (1 to 2 sentences maximum), perfect for a quick WhatsApp message.
+- Tone: Friendly, polite, and natural.
+- Language Mode: ${lang} (support Hindi, Hinglish, English, or Gujarati context as appropriate).
+- Address the message content directly and politely explain you will get back soon if busy.
+- Output ONLY the final reply message text directly without quotes, labels, or extra conversational filler.`;
+    const response = await ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: prompt,
+      config: {
+        systemInstruction: `You are an auto-reply generator for ${targetUserName}. Produce direct, concise WhatsApp replies in ${lang}.`
+      }
+    });
+    const replyText = response.text ? response.text.trim().replace(/^["']|["']$/g, "") : `Hii! ${targetUserName} is currently occupied and will reply to you shortly.`;
+    res.json({ reply: replyText, sender, originalMessage: message });
+  } catch (error) {
+    console.error("Error in /api/whatsapp-autoreply:", error);
+    res.status(500).json({
+      error: error.message,
+      reply: `Hii! Thanks for your message. I am busy right now and will get back to you soon!`
+    });
+  }
+});
 app.post("/api/tts", async (req, res) => {
   try {
-    const { text, languageMode } = req.body;
+    const { text, languageMode, voiceGender, voiceStyle } = req.body;
     if (!text || typeof text !== "string") {
       res.status(400).json({ error: "Text parameter is required" });
       return;
     }
-    let cleanText = text.replace(/\bDIGUU\s*AI\b/gi, "Digu AI").replace(/\bDIGUU\b/gi, "Digu").replace(/\bDiguu\s*AI\b/gi, "Digu AI").replace(/\bDiguu\b/gi, "Digu");
+    const isMale = voiceGender === "male" || voiceStyle === "Puck" || voiceStyle === "Fenrir";
+    const selectedVoiceName = isMale ? "Puck" : "Kore";
+    let cleanText = text.replace(/\bD-I-G-U-U\s*A-I\b/gi, "Digu AI").replace(/\bD-I-G-U-U\b/gi, "Digu").replace(/\bDIGUU\s*AI\b/gi, "Digu AI").replace(/\bDIGUU\b/gi, "Digu").replace(/\bDiguu\s*AI\b/gi, "Digu AI").replace(/\bDiguu\b/gi, "Digu");
     if (/[\u0A80-\u0AFF]/.test(text)) {
       cleanText = cleanText.replace(/\bDigu\s*AI\b/gi, "\u0AA6\u0AC0\u0A97\u0AC1 AI").replace(/\bDigu\b/gi, "\u0AA6\u0AC0\u0A97\u0AC1");
+    } else if (/[\u0900-\u097F]/.test(text)) {
+      cleanText = cleanText.replace(/\bDigu\s*AI\b/gi, "\u0926\u0940\u0917\u0942 AI").replace(/\bDigu\b/gi, "\u0926\u0940\u0917\u0942");
     }
     cleanText = cleanText.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{FE0F}]/gu, "").replace(/[*#_~`>-]/g, " ").replace(/\[.*?\]\(.*?\)/g, "").replace(/(\r\n|\n|\r)/gm, " ").replace(/\s+/g, " ").trim().slice(0, 300);
     const isGujaratiScript = /[\u0A80-\u0AFF]/.test(cleanText) || /\b(kem cho|majama|su kare|khadho|maru|dikra|bachu|tamne|babu)\b/i.test(cleanText);
@@ -228,7 +269,7 @@ app.post("/api/tts", async (req, res) => {
         responseModalities: ["AUDIO"],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: ttsLang === "gu" ? "Kore" : "Aoede" }
+            prebuiltVoiceConfig: { voiceName: selectedVoiceName }
           }
         }
       }

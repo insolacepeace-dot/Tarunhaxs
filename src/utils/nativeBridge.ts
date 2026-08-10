@@ -2,6 +2,8 @@
  * DIGUU AI Native Device Bridge & Capacitor System Control Plugin
  */
 
+import { getApiHeaders } from './apiUtils';
+
 let activeMediaStream: MediaStream | null = null;
 let flashlightTrack: MediaStreamTrack | null = null;
 let isFlashlightOn = false;
@@ -196,7 +198,7 @@ export async function generateWhatsAppAIReply(
   try {
     const response = await fetch('/api/whatsapp-autoreply', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getApiHeaders(),
       body: JSON.stringify({
         sender,
         message,

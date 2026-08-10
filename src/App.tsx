@@ -22,6 +22,7 @@ import {
   QuickActionItem, 
   ChatMessage 
 } from './types';
+import { getApiHeaders } from './utils/apiUtils';
 
 import { Header } from './components/Header';
 import { BottomNav, TabType } from './components/BottomNav';
@@ -113,7 +114,7 @@ export default function App() {
       // Call Server-Side Multilingual Audio Endpoint
       const response = await fetch('/api/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           text: cleanedText,
           languageMode: userProfile.languageMode,
@@ -269,7 +270,7 @@ export default function App() {
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           message: text,
           history: messages,
@@ -325,7 +326,7 @@ export default function App() {
     try {
       const res = await fetch('/api/briefing', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           type,
           weather: `${weather.condition}, ${weather.temp}°C in ${weather.city}`,

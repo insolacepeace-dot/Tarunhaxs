@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sun, 
   Moon, 
@@ -20,8 +20,13 @@ import {
   HeartPulse, 
   Navigation, 
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Flame,
-  Volume2
+  Volume2,
+  Filter,
+  Layers,
+  Activity
 } from 'lucide-react';
 import { UserProfile, WeatherData, Reminder, HabitGoal, QuickActionItem, SavedPlace } from '../types';
 import { AvatarCompanion } from './AvatarCompanion';
@@ -68,6 +73,12 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
   const [briefingTab, setBriefingTab] = useState<'morning' | 'evening'>('morning');
   const [flashActive, setFlashActive] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Category Collapsible Card States
+  const [isNativeExpanded, setIsNativeExpanded] = useState(true);
+  const [isShortcutsExpanded, setIsShortcutsExpanded] = useState(true);
+  const [isUtilitiesExpanded, setIsUtilitiesExpanded] = useState(true);
+  const [utilityCategory, setUtilityCategory] = useState<'all' | 'daily' | 'communication' | 'media' | 'health'>('all');
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -222,152 +233,238 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
         </motion.div>
       )}
 
-      {/* Direct Native Android Controls Bar */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-4 backdrop-blur-md space-y-3 shadow-lg">
-        <div className="flex items-center justify-between">
+      {/* Direct Native Android Controls Bar (Collapsible Category Card) */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-4 backdrop-blur-md shadow-lg transition-all">
+        <button
+          onClick={() => setIsNativeExpanded(!isNativeExpanded)}
+          className="w-full flex items-center justify-between cursor-pointer group"
+        >
           <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-pink-400" />
+            <Zap className="w-4 h-4 text-pink-400 group-hover:scale-110 transition-transform" />
             <h3 className="text-xs font-bold text-pink-400 uppercase tracking-widest">Native Android Controls</h3>
           </div>
-          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Capacitor Bridge</span>
-        </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Capacitor Bridge</span>
+            {isNativeExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+          </div>
+        </button>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          {/* Flashlight */}
-          <motion.button
-            onClick={handleFlashlightToggle}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
-            className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
-              flashActive
-                ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
-                : 'bg-slate-950/60 border-slate-800 hover:border-amber-500/40 text-slate-200'
-            }`}
+        {isNativeExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="pt-3"
           >
-            <div className="flex items-center justify-between">
-              <Zap className={`w-5 h-5 ${flashActive ? 'text-amber-400 animate-pulse' : 'text-slate-400'}`} />
-              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-800">
-                {flashActive ? 'ON' : 'OFF'}
-              </span>
-            </div>
-            <div className="mt-2">
-              <span className="text-xs font-bold block">Flashlight</span>
-              <span className="text-[10px] text-slate-400 block">Camera Torch LED</span>
-            </div>
-          </motion.button>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {/* Flashlight */}
+              <motion.button
+                onClick={handleFlashlightToggle}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                  flashActive
+                    ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                    : 'bg-slate-950/60 border-slate-800 hover:border-amber-500/40 text-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <Zap className={`w-5 h-5 ${flashActive ? 'text-amber-400 animate-pulse' : 'text-slate-400'}`} />
+                  <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-800">
+                    {flashActive ? 'ON' : 'OFF'}
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <span className="text-xs font-bold block">Flashlight</span>
+                  <span className="text-[10px] text-slate-400 block">Camera Torch LED</span>
+                </div>
+              </motion.button>
 
-          {/* WhatsApp Intent */}
-          <motion.button
-            onClick={handleOpenWhatsApp}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
-            className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-emerald-500/40 text-left flex flex-col justify-between transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <MessageSquare className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
-              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">
-                Intent
-              </span>
-            </div>
-            <div className="mt-2">
-              <span className="text-xs font-bold text-slate-200 block">WhatsApp</span>
-              <span className="text-[10px] text-slate-400 block">Launch App Direct</span>
-            </div>
-          </motion.button>
+              {/* WhatsApp Intent */}
+              <motion.button
+                onClick={handleOpenWhatsApp}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-emerald-500/40 text-left flex flex-col justify-between transition-all group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <MessageSquare className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">
+                    Intent
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <span className="text-xs font-bold text-slate-200 block">WhatsApp</span>
+                  <span className="text-[10px] text-slate-400 block">Launch App Direct</span>
+                </div>
+              </motion.button>
 
-          {/* Alarm & Clock */}
-          <motion.button
-            onClick={handleOpenAlarm}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
-            className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-cyan-500/40 text-left flex flex-col justify-between transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <Clock className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
-              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400">
-                Alarm
-              </span>
-            </div>
-            <div className="mt-2">
-              <span className="text-xs font-bold text-slate-200 block">Set Alarm</span>
-              <span className="text-[10px] text-slate-400 block">Clock Intent</span>
-            </div>
-          </motion.button>
+              {/* Alarm & Clock */}
+              <motion.button
+                onClick={handleOpenAlarm}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-cyan-500/40 text-left flex flex-col justify-between transition-all group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <Clock className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400">
+                    Alarm
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <span className="text-xs font-bold text-slate-200 block">Set Alarm</span>
+                  <span className="text-[10px] text-slate-400 block">Clock Intent</span>
+                </div>
+              </motion.button>
 
-          {/* Camera Capture */}
-          <motion.button
-            onClick={handleOpenCamera}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
-            className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-purple-500/40 text-left flex flex-col justify-between transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <Camera className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
-              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400">
-                Camera
-              </span>
+              {/* Camera Capture */}
+              <motion.button
+                onClick={handleOpenCamera}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-purple-500/40 text-left flex flex-col justify-between transition-all group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <Camera className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400">
+                    Camera
+                  </span>
+                </div>
+                <div className="mt-2">
+                  <span className="text-xs font-bold text-slate-200 block">Camera</span>
+                  <span className="text-[10px] text-slate-400 block">Live Feed Capture</span>
+                </div>
+              </motion.button>
             </div>
-            <div className="mt-2">
-              <span className="text-xs font-bold text-slate-200 block">Camera</span>
-              <span className="text-[10px] text-slate-400 block">Live Feed Capture</span>
-            </div>
-          </motion.button>
-        </div>
+          </motion.div>
+        )}
       </div>
 
-      {/* Voice Quick Commands */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest">
-            Voice Shortcuts
-          </h3>
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Hands-Free</span>
-        </div>
+      {/* Voice Quick Commands (Collapsible Category Card) */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-4 backdrop-blur-md shadow-lg transition-all">
+        <button
+          onClick={() => setIsShortcutsExpanded(!isShortcutsExpanded)}
+          className="w-full flex items-center justify-between cursor-pointer group"
+        >
+          <div className="flex items-center gap-2">
+            <Volume2 className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest">
+              Voice Shortcuts
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Hands-Free</span>
+            {isShortcutsExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+          </div>
+        </button>
 
-        <div className="grid grid-cols-2 gap-2.5">
-          {quickActions.slice(0, 4).map((qa) => (
-            <motion.button
-              key={qa.id}
-              onClick={() => onSelectAction(qa)}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              className="p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-left flex items-center gap-3 transition-all group"
-            >
-              <div className="p-2 rounded-xl bg-slate-800/80 group-hover:bg-indigo-500/20 text-indigo-400 transition-colors">
-                {renderIcon(qa.iconName)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-[10px] text-slate-400 uppercase tracking-tighter block">{qa.label}</span>
-                <span className="text-xs text-white font-medium truncate block">"{qa.shortcut}"</span>
-              </div>
-            </motion.button>
-          ))}
-        </div>
+        {isShortcutsExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="pt-3"
+          >
+            <div className="grid grid-cols-2 gap-2.5">
+              {quickActions.slice(0, 4).map((qa) => (
+                <motion.button
+                  key={qa.id}
+                  onClick={() => onSelectAction(qa)}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-left flex items-center gap-3 transition-all group cursor-pointer"
+                >
+                  <div className="p-2 rounded-xl bg-slate-800/80 group-hover:bg-indigo-500/20 text-indigo-400 transition-colors">
+                    {renderIcon(qa.iconName)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-tighter block">{qa.label}</span>
+                    <span className="text-xs text-white font-medium truncate block">"{qa.shortcut}"</span>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </div>
 
-      {/* Quick Capabilities Grid */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest">
-            Smart Productivity
-          </h3>
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">80+ Actions</span>
-        </div>
+      {/* Smart Productivity Utilities (Expandable Categorized Cards Grid) */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-4 backdrop-blur-md shadow-lg space-y-3">
+        <button
+          onClick={() => setIsUtilitiesExpanded(!isUtilitiesExpanded)}
+          className="w-full flex items-center justify-between cursor-pointer group"
+        >
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest">
+              Smart Productivity Utilities
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400 font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+              80+ Actions
+            </span>
+            {isUtilitiesExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+          </div>
+        </button>
 
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-          {quickActions.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onSelectAction(item)}
-              className="p-3 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-indigo-500/40 hover:bg-slate-800/40 transition-all flex flex-col items-center justify-center text-center gap-2 group shadow-sm"
-            >
-              <div className="p-2 rounded-xl bg-slate-800/60 group-hover:scale-110 transition-transform">
-                {renderIcon(item.iconName)}
-              </div>
-              <span className="text-[11px] font-medium text-slate-300 line-clamp-1">{item.label}</span>
-            </button>
-          ))}
-        </div>
+        {isUtilitiesExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-3 pt-1"
+          >
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {[
+                { id: 'all', label: 'All 80+' },
+                { id: 'daily', label: 'Daily Tasks' },
+                { id: 'communication', label: 'Communication' },
+                { id: 'media', label: 'Media & Tools' },
+                { id: 'health', label: 'Health & Travel' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setUtilityCategory(cat.id as any)}
+                  className={`px-3 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    utilityCategory === cat.id
+                      ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/30'
+                      : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Grid of Actions matching selected category */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+              {quickActions
+                .filter((item) => {
+                  if (utilityCategory === 'all') return true;
+                  if (utilityCategory === 'daily') return ['AlarmClock', 'Bell', 'FileText'].includes(item.iconName);
+                  if (utilityCategory === 'communication') return ['PhoneCall', 'MessageSquare', 'Zap'].includes(item.iconName);
+                  if (utilityCategory === 'media') return ['Camera', 'Music', 'Calculator'].includes(item.iconName);
+                  if (utilityCategory === 'health') return ['CloudSun', 'HeartPulse', 'Navigation'].includes(item.iconName);
+                  return true;
+                })
+                .map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => onSelectAction(item)}
+                    className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800/80 hover:border-cyan-500/40 hover:bg-slate-800/60 transition-all flex flex-col items-center justify-center text-center gap-2 group shadow-sm cursor-pointer active:scale-95"
+                  >
+                    <div className="p-2 rounded-xl bg-slate-800/80 group-hover:scale-110 transition-transform">
+                      {renderIcon(item.iconName)}
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-200 line-clamp-1">{item.label}</span>
+                  </button>
+                ))}
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Wellness & Hydration Goal Block */}
