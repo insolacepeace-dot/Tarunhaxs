@@ -56,8 +56,8 @@ async function generateContentWithFallback(
   const modelsToTry = [
     params.primaryModel || "gemini-3.6-flash",
     "gemini-3.6-flash",
-    "gemini-flash-latest",
     "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite",
   ];
 
   // Remove duplicates while keeping order
@@ -77,9 +77,15 @@ async function generateContentWithFallback(
       } catch (err: any) {
         lastError = err;
         const errStr = String(err?.message || err);
-        console.warn(`[Gemini Fallback] Model ${modelName} (attempt ${attempt + 1}) encountered issue (${errStr})...`);
+        const isQuota = err?.status === "RESOURCE_EXHAUSTED" || err?.code === 429 || errStr.includes("quota") || errStr.includes("429");
+        console.warn(`[Gemini Fallback] Model ${modelName} issue (${isQuota ? 'Quota/429' : 'Error'}): ${errStr.slice(0, 120)}...`);
+        
+        // If quota limit hit, skip second attempt on this model and try next model
+        if (isQuota) {
+          break;
+        }
         if (attempt < 1) {
-          await new Promise((r) => setTimeout(r, 1000));
+          await new Promise((r) => setTimeout(r, 600));
         }
       }
     }
