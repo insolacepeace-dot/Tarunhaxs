@@ -8,8 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-apk:
-    name: Build Android Debug APK
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,11 +32,10 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
 
       - name: Install Dependencies
-        run: |
-          npm install
+        run: npm install
 
       - name: Build Web Production Assets
         run: npm run build
@@ -45,26 +43,15 @@ jobs:
       - name: Sync Capacitor Android
         run: npx cap sync android || true
 
-      - name: Generate Gradle Wrapper
-        run: |
-          mkdir -p android/gradle/wrapper
-          cd android
-          gradle wrapper --gradle-version 8.2 || gradle wrapper || true
-          chmod +x gradlew
-
-      - name: Build Android Debug APK
+      - name: Build Android Debug APK using System Gradle
         run: |
           cd android
-          if [ -f "gradlew" ]; then
-            ./gradlew assembleDebug --stacktrace
-          else
-            gradle assembleDebug --stacktrace
-          fi
+          gradle assembleDebug --stacktrace
 
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: diguu-ai-apk
+          name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
           if-no-files-found: ignore
