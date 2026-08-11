@@ -44,7 +44,7 @@ const getAiClient = (req?: express.Request) => {
   });
 };
 
-// Robust Gemini execution helper with active free model fallback & retries
+// Robust Gemini execution helper with active model fallback & retries
 async function generateContentWithFallback(
   ai: GoogleGenAI,
   params: {
@@ -54,10 +54,10 @@ async function generateContentWithFallback(
   }
 ) {
   const modelsToTry = [
-    params.primaryModel || "gemini-3.6-flash",
-    "gemini-3.6-flash",
-    "gemini-flash-latest",
-    "gemini-3.1-flash-lite",
+    params.primaryModel || "gemini-2.5-flash",
+    "gemini-2.5-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
   ];
 
   // Remove duplicates while keeping order
@@ -79,7 +79,7 @@ async function generateContentWithFallback(
         const errStr = String(err?.message || err);
         console.warn(`[Gemini Fallback] Model ${modelName} (attempt ${attempt + 1}) encountered issue (${errStr})...`);
         if (attempt < 1) {
-          await new Promise((r) => setTimeout(r, 1200));
+          await new Promise((r) => setTimeout(r, 1000));
         }
       }
     }
@@ -162,7 +162,7 @@ Rules:
     });
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-3.6-flash",
+      primaryModel: "gemini-2.5-flash",
       contents,
       config: {
         systemInstruction,
@@ -171,21 +171,14 @@ Rules:
     });
 
     res.json({
-      text: response.text || `Main yahan hoon aapke liye, ${targetUserName}! 💕 Tell me what you need.`,
+      text: response.text,
     });
   } catch (error: any) {
     console.error("Error in DIGUU /api/chat:", error?.message || error);
     const rawErrorMsg = error?.message || String(error);
-    const isQuota = error?.status === "RESOURCE_EXHAUSTED" || error?.code === 429 || rawErrorMsg.includes("quota") || rawErrorMsg.includes("429");
-
-    const fallbackResponse = isQuota
-      ? `Haan ${targetUserName}! 💕 Main sun rahi hoon! Thoda network high demand hai abhi, par main aapki madad ke liye taiyar hoon!`
-      : `Hii ${targetUserName}! 💕 Main yahan hoon! Tell me what you need!`;
-
-    res.json({
-      text: fallbackResponse,
-      isFallback: true,
-      error: rawErrorMsg,
+    res.status(500).json({
+      error: `[Gemini API Error] ${rawErrorMsg}`,
+      isError: true,
     });
   }
 });
@@ -223,7 +216,7 @@ Include:
 4. Relaxing night thought or funny story joke to unwind.`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-3.6-flash",
+      primaryModel: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction: "You are DIGUU AI, the ultimate caring AI Bestie.",
@@ -233,12 +226,8 @@ Include:
     res.json({ summary: response.text });
   } catch (error: any) {
     console.error("Error in /api/briefing:", error?.message || error);
-    const { type, userName } = req.body;
-    res.json({
-      summary: type === "morning"
-        ? `Good Morning ${userName || "Jaan"}! ☀️\nToday is a brand new day full of possibilities! Stay hydrated, keep smiling, and let's achieve great things today! 💕`
-        : `Good Evening ${userName || "Jaan"}! 🌙\nYou did amazing today! Take some rest, drink water, and sleep tight! 💕`,
-      isFallback: true,
+    res.status(500).json({
+      error: `[Gemini API Error] ${error?.message || String(error)}`,
     });
   }
 });
@@ -273,7 +262,7 @@ app.post("/api/creativity", async (req, res) => {
     }
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-3.6-flash",
+      primaryModel: "gemini-2.5-flash",
       contents: userPrompt,
       config: { systemInstruction },
     });
@@ -281,9 +270,8 @@ app.post("/api/creativity", async (req, res) => {
     res.json({ result: response.text });
   } catch (error: any) {
     console.error("Error in /api/creativity:", error?.message || error);
-    res.json({
-      result: `✨ DIGUU Creative Output:\n\n${req.body?.prompt || "Draft"}\n\n(Quota limit momentarily hit. Try again in a few seconds!)`,
-      isFallback: true,
+    res.status(500).json({
+      error: `[Gemini API Error] ${error?.message || String(error)}`,
     });
   }
 });
@@ -323,7 +311,7 @@ Respond strictly with a JSON array of objects with the exact key names:
 ]`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-3.6-flash",
+      primaryModel: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction: "You are DIGUU Smart Scheduler AI. Return a valid JSON array of schedule suggestions without markdown backticks.",
@@ -341,21 +329,8 @@ Respond strictly with a JSON array of objects with the exact key names:
     res.json({ suggestions });
   } catch (error: any) {
     console.error("Error in /api/smart-scheduler:", error?.message || error);
-    res.json({
-      suggestions: [
-        {
-          id: "sugg-fallback-1",
-          routineId: "r4",
-          title: "Weather Adjustment: Gym Workout",
-          originalTime: "07:00 PM",
-          suggestedTime: "06:15 PM",
-          type: "weather_impact",
-          severity: "medium",
-          reason: "High temperature predicted around 07:00 PM. Advancing workout by 45 mins avoids peak heat.",
-          actionLabel: "Shift to 06:15 PM"
-        }
-      ],
-      isFallback: true,
+    res.status(500).json({
+      error: `[Gemini API Error] ${error?.message || String(error)}`,
     });
   }
 });
@@ -381,7 +356,7 @@ Requirements:
 - Output ONLY the final reply message text directly without quotes, labels, or extra conversational filler.`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-3.6-flash",
+      primaryModel: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction: `You are an auto-reply generator for ${targetUserName}. Produce direct, concise WhatsApp replies in ${lang}.`,
@@ -390,16 +365,13 @@ Requirements:
 
     const replyText = response.text
       ? response.text.trim().replace(/^["']|["']$/g, "")
-      : `Hii! ${targetUserName} is currently occupied and will reply to you shortly.`;
+      : "";
 
     res.json({ reply: replyText, sender, originalMessage: message });
   } catch (error: any) {
     console.error("Error in /api/whatsapp-autoreply:", error?.message || error);
-    const targetUserName = req.body?.userName || "Tarun";
-    res.json({
-      reply: `Hii! ${targetUserName} is currently busy right now and will get back to you soon! 💕`,
-      sender: req.body?.sender || "Contact",
-      isFallback: true,
+    res.status(500).json({
+      error: `[Gemini API Error] ${error?.message || String(error)}`,
     });
   }
 });
@@ -476,7 +448,7 @@ app.post("/api/tts", async (req, res) => {
     try {
       const ai = getAiClient(req);
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-tts-preview",
+        model: "gemini-2.5-flash",
         contents: [{ parts: [{ text: cleanText }] }],
         config: {
           responseModalities: ["AUDIO" as any],
@@ -535,7 +507,7 @@ app.post("/api/generate-image", async (req, res) => {
     const ai = getAiClient();
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-image",
+      model: "imagen-3.0-generate-002",
       contents: {
         parts: [{ text: prompt || "A cute anime 3D digital girl avatar with purple hair and glowing neon heart background" }],
       },
