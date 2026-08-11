@@ -54,10 +54,10 @@ async function generateContentWithFallback(
   }
 ) {
   const modelsToTry = [
-    params.primaryModel || "gemini-2.5-flash",
-    "gemini-2.5-flash",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
+    params.primaryModel || "gemini-3.6-flash",
+    "gemini-3.6-flash",
+    "gemini-flash-latest",
+    "gemini-3.1-flash-lite",
   ];
 
   // Remove duplicates while keeping order
@@ -162,7 +162,7 @@ Rules:
     });
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-2.5-flash",
+      primaryModel: "gemini-3.6-flash",
       contents,
       config: {
         systemInstruction,
@@ -216,7 +216,7 @@ Include:
 4. Relaxing night thought or funny story joke to unwind.`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-2.5-flash",
+      primaryModel: "gemini-3.6-flash",
       contents: prompt,
       config: {
         systemInstruction: "You are DIGUU AI, the ultimate caring AI Bestie.",
@@ -262,7 +262,7 @@ app.post("/api/creativity", async (req, res) => {
     }
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-2.5-flash",
+      primaryModel: "gemini-3.6-flash",
       contents: userPrompt,
       config: { systemInstruction },
     });
@@ -311,7 +311,7 @@ Respond strictly with a JSON array of objects with the exact key names:
 ]`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-2.5-flash",
+      primaryModel: "gemini-3.6-flash",
       contents: prompt,
       config: {
         systemInstruction: "You are DIGUU Smart Scheduler AI. Return a valid JSON array of schedule suggestions without markdown backticks.",
@@ -356,7 +356,7 @@ Requirements:
 - Output ONLY the final reply message text directly without quotes, labels, or extra conversational filler.`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-2.5-flash",
+      primaryModel: "gemini-3.6-flash",
       contents: prompt,
       config: {
         systemInstruction: `You are an auto-reply generator for ${targetUserName}. Produce direct, concise WhatsApp replies in ${lang}.`,
@@ -448,7 +448,7 @@ app.post("/api/tts", async (req, res) => {
     try {
       const ai = getAiClient(req);
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.1-flash-tts-preview",
         contents: [{ parts: [{ text: cleanText }] }],
         config: {
           responseModalities: ["AUDIO" as any],
@@ -507,7 +507,7 @@ app.post("/api/generate-image", async (req, res) => {
     const ai = getAiClient();
 
     const response = await ai.models.generateContent({
-      model: "imagen-3.0-generate-002",
+      model: "gemini-3.1-flash-lite-image",
       contents: {
         parts: [{ text: prompt || "A cute anime 3D digital girl avatar with purple hair and glowing neon heart background" }],
       },
