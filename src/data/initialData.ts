@@ -24,6 +24,8 @@ export const initialUserProfile: UserProfile = {
   languageMode: 'hinglish',
   voiceStyle: 'Puck',
   voiceSpeed: 1.0,
+  voicePitch: 1.0,
+  voiceEngine: 'server_ai',
   wakeWordEnabled: true,
   avatarVariant: 'main',
   avatarOutfit: 'Pink Sweats & Bow 🎀',

@@ -66,12 +66,16 @@ export default function App() {
   const [weather] = useState(initialWeather);
   const [places] = useState(initialPlaces);
 
-  // Sync profile to localStorage
+  // Sync profile & theme to localStorage & DOM data-theme attribute
   useEffect(() => {
     try {
       localStorage.setItem('diguu_user_profile_v1', JSON.stringify(userProfile));
+      const activeTheme = userProfile.theme || 'jarvis';
+      document.documentElement.setAttribute('data-theme', activeTheme);
+      document.body.setAttribute('data-theme', activeTheme);
+      localStorage.setItem('diguu_app_theme', activeTheme);
     } catch (e) {
-      console.warn('Failed to save profile to localStorage:', e);
+      console.warn('Failed to save profile or theme to localStorage:', e);
     }
   }, [userProfile]);
 
@@ -584,6 +588,7 @@ export default function App() {
               onGenerateBriefing={handleGenerateBriefing}
               onApplyTimeShift={handleApplyScheduleShift}
               onNavigateToScheduler={handleNavigateToScheduler}
+              onUpdateProfile={handleUpdateProfile}
               briefingText={briefingText}
               isBriefingLoading={isBriefingLoading}
             />

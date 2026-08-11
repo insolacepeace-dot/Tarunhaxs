@@ -53,6 +53,7 @@ interface SmartDashboardProps {
   onGenerateBriefing: (type: 'morning' | 'evening') => void;
   onApplyTimeShift?: (routineId: string, newTime: string) => void;
   onNavigateToScheduler?: () => void;
+  onUpdateProfile?: (updated: Partial<UserProfile>) => void;
   briefingText: string;
   isBriefingLoading: boolean;
 }
@@ -73,6 +74,7 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = React.memo(({
   onGenerateBriefing,
   onApplyTimeShift,
   onNavigateToScheduler,
+  onUpdateProfile,
   briefingText,
   isBriefingLoading,
 }) => {
@@ -165,6 +167,47 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = React.memo(({
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
             <BatteryCharging className="w-6 h-6" />
           </div>
+        </div>
+      </div>
+
+      {/* 5-in-1 Real-Time Theme Quick Selector */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-4 backdrop-blur-md space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest">
+              Theme Switcher
+            </h3>
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium capitalize">
+            Current: {userProfile.theme || 'jarvis'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          {[
+            { id: 'jarvis', label: 'JARVIS', icon: '🤖', color: 'border-cyan-400 text-cyan-300' },
+            { id: 'glass', label: 'Liquid Glass', icon: '💧', color: 'border-purple-400 text-purple-300' },
+            { id: 'cyberpunk', label: 'Cyberpunk', icon: '⚡', color: 'border-pink-500 text-pink-400' },
+            { id: 'ios', label: 'iOS Clean', icon: '📱', color: 'border-slate-300 text-slate-100' },
+            { id: 'matrix', label: 'Matrix', icon: '💻', color: 'border-emerald-400 text-emerald-300' },
+          ].map((themeItem) => {
+            const active = userProfile.theme === themeItem.id;
+            return (
+              <button
+                key={themeItem.id}
+                onClick={() => onUpdateProfile && onUpdateProfile({ theme: themeItem.id as any })}
+                className={`px-3 py-1.5 rounded-2xl border text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
+                  active
+                    ? `bg-slate-800 ${themeItem.color} shadow-md ring-1 ring-cyan-500/50`
+                    : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <span>{themeItem.icon}</span>
+                <span>{themeItem.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

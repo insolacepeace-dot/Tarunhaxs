@@ -224,9 +224,111 @@ export async function generateWhatsAppAIReply(
  */
 export const accessibilitySystemPlugin = {
   // Simulate screen tap at (x, y) coordinates
-  simulateScreenTap: async (x: number, y: number): Promise<{ success: boolean; message: string }> => {
-    console.log(`[DIGUU Accessibility] Simulating screen tap at (${x}, ${y})`);
+  tapAtPosition: async (x: number, y: number): Promise<{ success: boolean; message: string }> => {
+    console.log(`[DIGUU Accessibility] Simulating tap at X:${x}, Y:${y}`);
+    const el = document.elementFromPoint(x, y);
+    if (el && typeof (el as HTMLElement).click === 'function') {
+      (el as HTMLElement).click();
+    }
     return { success: true, message: `Simulated tap at X:${x}, Y:${y}` };
+  },
+
+  // Click UI node by CSS selector or text matching
+  clickNode: async (nodeSelector: string): Promise<{ success: boolean; message: string }> => {
+    console.log(`[DIGUU Accessibility] Clicking node selector: ${nodeSelector}`);
+    try {
+      const el = document.querySelector(nodeSelector) as HTMLElement;
+      if (el) {
+        el.click();
+        return { success: true, message: `Clicked node: ${nodeSelector}` };
+      }
+    } catch (e) {
+      console.warn('clickNode error:', e);
+    }
+    return { success: false, message: `Node not found: ${nodeSelector}` };
+  },
+
+  // Perform gestures: swipeUp, swipeDown, back, home, recents, notifications
+  swipeUp: async (): Promise<{ success: boolean }> => {
+    console.log('[DIGUU Accessibility] Executing swipeUp gesture');
+    window.scrollBy({ top: 400, behavior: 'smooth' });
+    return { success: true };
+  },
+
+  swipeDown: async (): Promise<{ success: boolean }> => {
+    console.log('[DIGUU Accessibility] Executing swipeDown gesture');
+    window.scrollBy({ top: -400, behavior: 'smooth' });
+    return { success: true };
+  },
+
+  autoScroll: async (direction: 'up' | 'down' = 'down'): Promise<{ success: boolean }> => {
+    const amount = direction === 'down' ? 500 : -500;
+    window.scrollBy({ top: amount, behavior: 'smooth' });
+    return { success: true };
+  },
+
+  // Auto-inject text directly into active focused element or specified input
+  typeTextIntoActiveField: async (text: string, targetSelector?: string): Promise<{ success: boolean }> => {
+    console.log(`[DIGUU Accessibility] Injecting text: "${text}"`);
+    let activeInput: HTMLInputElement | HTMLTextAreaElement | null = null;
+    if (targetSelector) {
+      activeInput = document.querySelector(targetSelector) as any;
+    }
+    if (!activeInput) {
+      activeInput = document.activeElement as any;
+    }
+    if (activeInput && ('value' in activeInput)) {
+      activeInput.value = text;
+      activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+      activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+      return { success: true };
+    }
+    return { success: false };
+  },
+
+  // Instagram Auto-Post: Auto-generate caption/hashtags via Gemini API & trigger Instagram Intent
+  openInstagramAutoPost: async (caption: string = 'Created with DIGUU AI ✨ #DIGUU #AICompanion'): Promise<{ success: boolean }> => {
+    console.log('[DIGUU Automation] Triggering Instagram Auto-Post Intent with caption:', caption);
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(caption);
+      }
+    } catch (e) {
+      console.warn('Clipboard write error:', e);
+    }
+
+    const instagramIntent = 'intent:#Intent;action=android.intent.action.SEND;type=text/plain;S.android.intent.extra.TEXT=' + encodeURIComponent(caption) + ';package=com.instagram.android;end';
+    try {
+      window.location.href = instagramIntent;
+    } catch (err) {
+      window.open('https://instagram.com', '_blank');
+    }
+    return { success: true };
+  },
+
+  // System Settings & Security Redirection Intent Launcher
+  deviceSettingOpen: async (settingType: 'display' | 'security' | 'lock' | 'theme' | 'accessibility' | 'wifi' | 'bluetooth'): Promise<{ success: boolean }> => {
+    console.log(`[DIGUU Automation] Opening Android System Setting: ${settingType}`);
+    let intentUri = 'intent:#Intent;action=android.settings.SETTINGS;end';
+
+    if (settingType === 'security' || settingType === 'lock') {
+      intentUri = 'intent:#Intent;action=android.settings.SECURITY_SETTINGS;end';
+    } else if (settingType === 'display' || settingType === 'theme') {
+      intentUri = 'intent:#Intent;action=android.settings.DISPLAY_SETTINGS;end';
+    } else if (settingType === 'accessibility') {
+      intentUri = 'intent:#Intent;action=android.settings.ACCESSIBILITY_SETTINGS;end';
+    } else if (settingType === 'wifi') {
+      intentUri = 'intent:#Intent;action=android.settings.WIFI_SETTINGS;end';
+    } else if (settingType === 'bluetooth') {
+      intentUri = 'intent:#Intent;action=android.settings.BLUETOOTH_SETTINGS;end';
+    }
+
+    try {
+      window.location.href = intentUri;
+    } catch (err) {
+      console.warn('Setting intent redirect error:', err);
+    }
+    return { success: true };
   },
 
   // Perform global Android system gestures
@@ -235,6 +337,8 @@ export const accessibilitySystemPlugin = {
     try {
       if (gesture === 'home') {
         window.location.href = 'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.HOME;end';
+      } else if (gesture === 'notifications') {
+        window.location.href = 'intent:#Intent;action=android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS;end';
       }
     } catch (e) {
       console.warn('Gesture intent execution:', e);

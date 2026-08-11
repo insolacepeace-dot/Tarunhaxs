@@ -81,11 +81,13 @@ export interface UserProfile {
   voiceGender?: 'male' | 'female';
   location: string;
   occupation: string;
-  theme: 'neon-cyber' | 'dark-velvet' | 'violet-glow' | 'sunset-gold' | 'light-cyber';
+  theme: 'jarvis' | 'glass' | 'cyberpunk' | 'ios' | 'matrix' | 'neon-cyber' | 'dark-velvet' | 'violet-glow' | 'sunset-gold' | 'light-cyber';
   personality: 'Warm Bestie' | 'Professional AI' | 'Chill Buddy' | 'Guru Coach';
   languageMode: 'hinglish' | 'hindi' | 'gujarati' | 'english';
   voiceStyle: 'Kore' | 'Zephyr' | 'Puck' | 'Charon' | 'Fenrir';
   voiceSpeed: number; // 0.8 to 1.5
+  voicePitch?: number; // 0.8 to 1.2
+  voiceEngine?: 'natural_webspeech' | 'server_ai';
   wakeWordEnabled: boolean;
   avatarVariant: string;
   avatarOutfit: string;

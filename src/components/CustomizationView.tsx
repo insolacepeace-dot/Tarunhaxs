@@ -322,21 +322,78 @@ export const CustomizationView: React.FC<CustomizationViewProps> = React.memo(({
               </div>
             </div>
 
-            {/* Neon Halo Color */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300">Neon Halo Glow Color</label>
-              <div className="flex items-center gap-3">
-                {haloColors.map((halo) => (
-                  <button
-                    key={halo.name}
-                    type="button"
-                    onClick={() => onUpdateProfile({ haloColor: halo.color })}
-                    className="w-9 h-9 rounded-full border-2 border-slate-800 flex items-center justify-center transition-transform hover:scale-110 cursor-pointer"
-                    style={{ backgroundColor: halo.color }}
-                  >
-                    {userProfile.haloColor === halo.color && <Check className="w-5 h-5 text-slate-950 font-black" />}
-                  </button>
-                ))}
+            {/* Dynamic 5-in-1 Theme Switcher System */}
+            <div className="space-y-2 pt-2 border-t border-slate-800/80">
+              <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                <span>Dynamic 5-in-1 Theme Switcher System</span>
+                <span className="text-[10px] text-cyan-400 font-semibold uppercase">Real-Time Canvas Theme</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  {
+                    id: 'jarvis',
+                    name: 'JARVIS Dark Futuristic',
+                    icon: '🤖',
+                    border: 'border-cyan-400/80',
+                    badgeBg: 'bg-cyan-500/20 text-cyan-300',
+                    desc: 'Pure Dark Navy (#0B0F19) with glowing Cyan & Purple accents',
+                  },
+                  {
+                    id: 'glass',
+                    name: 'Liquid Glass UI',
+                    icon: '💧',
+                    border: 'border-purple-400/80',
+                    badgeBg: 'bg-purple-500/20 text-purple-300',
+                    desc: 'Glassmorphism blur (25px), frosted cards & plasma visualizer',
+                  },
+                  {
+                    id: 'cyberpunk',
+                    name: 'Cyberpunk Neon',
+                    icon: '⚡',
+                    border: 'border-pink-500/80',
+                    badgeBg: 'bg-pink-500/20 text-pink-300',
+                    desc: 'Obsidian Black (#05050A) with electric pink & neon yellow',
+                  },
+                  {
+                    id: 'ios',
+                    name: 'Minimalist iOS Clean',
+                    icon: '📱',
+                    border: 'border-slate-400/80',
+                    badgeBg: 'bg-slate-500/20 text-slate-200',
+                    desc: 'Dark Graphite (#1C1C1E) with smooth monochrome glass cards',
+                  },
+                  {
+                    id: 'matrix',
+                    name: 'Retro Matrix Green',
+                    icon: '💻',
+                    border: 'border-emerald-500/80',
+                    badgeBg: 'bg-emerald-500/20 text-emerald-300',
+                    desc: 'Terminal Black (#020b04) with phosphor green hacker HUD',
+                  },
+                ].map((t) => {
+                  const isSelected = userProfile.theme === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => onUpdateProfile({ theme: t.id as any })}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative ${
+                        isSelected
+                          ? `bg-slate-900 ${t.border} shadow-lg ring-1 ring-cyan-500/40`
+                          : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                          <span>{t.icon}</span>
+                          <span>{t.name}</span>
+                        </span>
+                        {isSelected && <Check className="w-4 h-4 text-cyan-400" />}
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight">{t.desc}</p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </motion.div>
@@ -849,21 +906,81 @@ export const CustomizationView: React.FC<CustomizationViewProps> = React.memo(({
               </div>
             </div>
 
-            {/* Voice Speed Slider */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-medium text-slate-300">
-                <span>Speech Rate / Speed</span>
-                <span className="text-pink-300 font-bold">{userProfile.voiceSpeed.toFixed(1)}x</span>
+            {/* Pitch & Rate Controls */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              {/* Pitch Slider */}
+              <div className="space-y-1 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between text-xs font-medium text-slate-300">
+                  <span>Voice Pitch</span>
+                  <span className="text-cyan-300 font-bold">{(userProfile.voicePitch || 1.0).toFixed(2)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.8"
+                  max="1.2"
+                  step="0.05"
+                  value={userProfile.voicePitch || 1.0}
+                  onChange={(e) => onUpdateProfile({ voicePitch: parseFloat(e.target.value) })}
+                  className="w-full accent-cyan-400 cursor-pointer"
+                />
+                <div className="flex justify-between text-[9px] text-slate-500">
+                  <span>Deep Pitch (0.8x)</span>
+                  <span>Cute Pitch (1.2x)</span>
+                </div>
               </div>
-              <input
-                type="range"
-                min="0.8"
-                max="1.5"
-                step="0.1"
-                value={userProfile.voiceSpeed}
-                onChange={(e) => onUpdateProfile({ voiceSpeed: parseFloat(e.target.value) })}
-                className="w-full accent-pink-500 cursor-pointer"
-              />
+
+              {/* Speed / Rate Slider */}
+              <div className="space-y-1 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between text-xs font-medium text-slate-300">
+                  <span>Speech Rate / Speed</span>
+                  <span className="text-pink-300 font-bold">{userProfile.voiceSpeed.toFixed(1)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.8"
+                  max="1.3"
+                  step="0.05"
+                  value={userProfile.voiceSpeed}
+                  onChange={(e) => onUpdateProfile({ voiceSpeed: parseFloat(e.target.value) })}
+                  className="w-full accent-pink-500 cursor-pointer"
+                />
+                <div className="flex justify-between text-[9px] text-slate-500">
+                  <span>Relaxed (0.8x)</span>
+                  <span>Fast (1.3x)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Voice Synthesis Engine Selector */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-bold text-slate-300">Human Voice Synthesis Engine</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onUpdateProfile({ voiceEngine: 'server_ai' })}
+                  className={`p-2.5 rounded-2xl text-left border transition-all cursor-pointer ${
+                    userProfile.voiceEngine !== 'natural_webspeech'
+                      ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500 text-white shadow-md'
+                      : 'bg-slate-950 border-slate-800 text-slate-400'
+                  }`}
+                >
+                  <div className="text-xs font-bold text-purple-300">Server AI Engine 🎙️</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Google Cloud & Gemini Multilingual Audio</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onUpdateProfile({ voiceEngine: 'natural_webspeech' })}
+                  className={`p-2.5 rounded-2xl text-left border transition-all cursor-pointer ${
+                    userProfile.voiceEngine === 'natural_webspeech'
+                      ? 'bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 border-cyan-500 text-white shadow-md'
+                      : 'bg-slate-950 border-slate-800 text-slate-400'
+                  }`}
+                >
+                  <div className="text-xs font-bold text-cyan-300">Natural WebSpeech 🗣️</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Offline-capable Android Native Voices</div>
+                </button>
+              </div>
             </div>
           </motion.div>
         )}

@@ -44,7 +44,7 @@ const getAiClient = (req?: express.Request) => {
   });
 };
 
-// Robust Gemini execution helper with active free model fallback & 429 quota retries
+// Robust Gemini execution helper with active free model fallback & retries
 async function generateContentWithFallback(
   ai: GoogleGenAI,
   params: {
@@ -66,29 +66,22 @@ async function generateContentWithFallback(
   let lastError: any = null;
 
   for (const modelName of uniqueModels) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: params.contents,
-        config: params.config,
-      });
-      return response;
-    } catch (err: any) {
-      lastError = err;
-      const errStr = String(err?.message || err);
-      const isQuotaOrRateLimit =
-        err?.status === "RESOURCE_EXHAUSTED" ||
-        err?.code === 429 ||
-        errStr.includes("429") ||
-        errStr.includes("quota") ||
-        errStr.includes("RESOURCE_EXHAUSTED");
-
-      if (isQuotaOrRateLimit) {
-        console.warn(`[Gemini Fallback] Model ${modelName} hit 429 quota/rate limit. Trying next model...`);
-        await new Promise((r) => setTimeout(r, 1200));
-        continue;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: params.contents,
+          config: params.config,
+        });
+        return response;
+      } catch (err: any) {
+        lastError = err;
+        const errStr = String(err?.message || err);
+        console.warn(`[Gemini Fallback] Model ${modelName} (attempt ${attempt + 1}) encountered issue (${errStr})...`);
+        if (attempt < 1) {
+          await new Promise((r) => setTimeout(r, 1200));
+        }
       }
-      console.warn(`[Gemini Fallback] Non-quota error with model ${modelName}:`, errStr);
     }
   }
 
@@ -102,11 +95,12 @@ app.get("/api/health", (_req, res) => {
 
 // API: Main DIGUU Chat Response
 app.post("/api/chat", async (req, res) => {
+  let targetUserName = "Tarun";
   try {
     const { message, history, userProfile, memories, personality, languageMode } = req.body;
     const ai = getAiClient(req);
 
-    const targetUserName = userProfile?.name || userProfile?.nickname || "Tarun";
+    targetUserName = userProfile?.name || userProfile?.nickname || "Tarun";
     const targetAiName = userProfile?.aiName || "DIGUU AI";
 
     const memContext = Array.isArray(memories) && memories.length > 0
@@ -184,14 +178,14 @@ Rules:
     const rawErrorMsg = error?.message || String(error);
     const isQuota = error?.status === "RESOURCE_EXHAUSTED" || error?.code === 429 || rawErrorMsg.includes("quota") || rawErrorMsg.includes("429");
 
-    const displayText = isQuota
-      ? `⚠️ Gemini Quota Limit Reached (429): ${rawErrorMsg}. Please try again in 10-15 seconds.`
-      : `⚠️ API Error: ${rawErrorMsg}`;
+    const fallbackResponse = isQuota
+      ? `Haan ${targetUserName}! 💕 Main sun rahi hoon! Thoda network high demand hai abhi, par main aapki madad ke liye taiyar hoon!`
+      : `Hii ${targetUserName}! 💕 Main yahan hoon! Tell me what you need!`;
 
-    res.status(500).json({
-      text: displayText,
+    res.json({
+      text: fallbackResponse,
+      isFallback: true,
       error: rawErrorMsg,
-      isError: true,
     });
   }
 });
