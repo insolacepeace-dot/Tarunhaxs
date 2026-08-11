@@ -57,7 +57,7 @@ interface SmartDashboardProps {
   isBriefingLoading: boolean;
 }
 
-export const SmartDashboard: React.FC<SmartDashboardProps> = ({
+export const SmartDashboard: React.FC<SmartDashboardProps> = React.memo(({
   userProfile,
   weather,
   reminders,
@@ -618,4 +618,7 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
       </div>
     </div>
   );
-};
+});
+
+SmartDashboard.displayName = 'SmartDashboard';
+

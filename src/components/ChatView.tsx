@@ -18,7 +18,7 @@ interface ChatViewProps {
   isLoading: boolean;
 }
 
-export const ChatView: React.FC<ChatViewProps> = ({
+export const ChatView: React.FC<ChatViewProps> = React.memo(({
   userProfile,
   messages,
   onSendMessage,
@@ -68,7 +68,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       ];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-125px)] max-w-2xl mx-auto pb-3 px-2 sm:px-4">
+    <div className="flex flex-col h-[calc(100dvh-130px)] max-w-2xl mx-auto pb-3 px-2 sm:px-4 touch-scroll gpu-accel">
       {/* 1. Sleek Glassmorphism Voice Visualizer & Assistant Bar */}
       <div className={`p-3.5 rounded-3xl border transition-all duration-300 backdrop-blur-xl shadow-xl ${
         isSpeaking 
@@ -259,4 +259,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       </form>
     </div>
   );
-};
+});
+
+ChatView.displayName = 'ChatView';
+

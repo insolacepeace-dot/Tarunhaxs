@@ -45,7 +45,7 @@ interface CustomizationViewProps {
   onTogglePermission: (key: keyof AppPermissions) => void;
 }
 
-export const CustomizationView: React.FC<CustomizationViewProps> = ({
+export const CustomizationView: React.FC<CustomizationViewProps> = React.memo(({
   userProfile,
   permissions,
   onUpdateProfile,
@@ -934,4 +934,7 @@ export const CustomizationView: React.FC<CustomizationViewProps> = ({
       </div>
     </div>
   );
-};
+});
+
+CustomizationView.displayName = 'CustomizationView';
+

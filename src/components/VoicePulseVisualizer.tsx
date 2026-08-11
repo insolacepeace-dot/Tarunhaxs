@@ -8,7 +8,7 @@ interface VoicePulseVisualizerProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-export const VoicePulseVisualizer: React.FC<VoicePulseVisualizerProps> = ({
+export const VoicePulseVisualizer: React.FC<VoicePulseVisualizerProps> = React.memo(({
   isListening,
   isSpeaking,
   onVoiceClick,
@@ -116,4 +116,7 @@ export const VoicePulseVisualizer: React.FC<VoicePulseVisualizerProps> = ({
       </div>
     </div>
   );
-};
+});
+
+VoicePulseVisualizer.displayName = 'VoicePulseVisualizer';
+

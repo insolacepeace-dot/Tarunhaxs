@@ -479,52 +479,58 @@ app.post("/api/tts", async (req, res) => {
     }
 
     // Fallback: Gemini Voice TTS Model
-    const ai = getAiClient(req);
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-tts-preview",
-      contents: [{ parts: [{ text: cleanText }] }],
-      config: {
-        responseModalities: ["AUDIO" as any],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: selectedVoiceName },
+    try {
+      const ai = getAiClient(req);
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-tts-preview",
+        contents: [{ parts: [{ text: cleanText }] }],
+        config: {
+          responseModalities: ["AUDIO" as any],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: selectedVoiceName },
+            },
           },
         },
-      },
-    });
+      });
 
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (base64Audio) {
-      // Build 44-byte WAV header for raw 24kHz 16-bit mono PCM
-      const pcmBuffer = Buffer.from(base64Audio, "base64");
-      const sampleRate = 24000;
-      const numChannels = 1;
-      const bitDepth = 16;
-      const wavHeader = Buffer.alloc(44);
+      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (base64Audio) {
+        // Build 44-byte WAV header for raw 24kHz 16-bit mono PCM
+        const pcmBuffer = Buffer.from(base64Audio, "base64");
+        const sampleRate = 24000;
+        const numChannels = 1;
+        const bitDepth = 16;
+        const wavHeader = Buffer.alloc(44);
 
-      wavHeader.write("RIFF", 0);
-      wavHeader.writeUInt32LE(36 + pcmBuffer.length, 4);
-      wavHeader.write("WAVE", 8);
-      wavHeader.write("fmt ", 12);
-      wavHeader.writeUInt32LE(16, 16);
-      wavHeader.writeUInt16LE(1, 20);
-      wavHeader.writeUInt16LE(numChannels, 22);
-      wavHeader.writeUInt32LE(sampleRate, 24);
-      wavHeader.writeUInt32LE(sampleRate * numChannels * (bitDepth / 8), 28);
-      wavHeader.writeUInt16LE(numChannels * (bitDepth / 8), 32);
-      wavHeader.writeUInt16LE(bitDepth, 34);
-      wavHeader.write("data", 36);
-      wavHeader.writeUInt32LE(pcmBuffer.length, 40);
+        wavHeader.write("RIFF", 0);
+        wavHeader.writeUInt32LE(36 + pcmBuffer.length, 4);
+        wavHeader.write("WAVE", 8);
+        wavHeader.write("fmt ", 12);
+        wavHeader.writeUInt32LE(16, 16);
+        wavHeader.writeUInt16LE(1, 20);
+        wavHeader.writeUInt16LE(numChannels, 22);
+        wavHeader.writeUInt32LE(sampleRate, 24);
+        wavHeader.writeUInt32LE(sampleRate * numChannels * (bitDepth / 8), 28);
+        wavHeader.writeUInt16LE(numChannels * (bitDepth / 8), 32);
+        wavHeader.writeUInt16LE(bitDepth, 34);
+        wavHeader.write("data", 36);
+        wavHeader.writeUInt32LE(pcmBuffer.length, 40);
 
-      const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
-      const wavBase64 = wavBuffer.toString("base64");
-      res.json({ audioUrl: `data:audio/wav;base64,${wavBase64}`, lang: ttsLang });
-    } else {
-      res.status(400).json({ error: "Could not generate speech audio." });
+        const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
+        const wavBase64 = wavBuffer.toString("base64");
+        res.json({ audioUrl: `data:audio/wav;base64,${wavBase64}`, lang: ttsLang });
+        return;
+      }
+    } catch (geminiError: any) {
+      console.warn("Gemini TTS quota or network error, defaulting to WebSpeech synthesis fallback:", geminiError?.message || geminiError);
     }
+
+    // Default response telling client to use local WebSpeech synthesis
+    res.json({ fallbackToSpeechSynthesis: true, lang: ttsLang });
   } catch (error: any) {
-    console.error("Error in /api/tts:", error);
-    res.status(500).json({ error: error.message });
+    console.warn("Error in /api/tts:", error?.message || error);
+    res.json({ fallbackToSpeechSynthesis: true });
   }
 });
 

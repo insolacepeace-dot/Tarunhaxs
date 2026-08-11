@@ -8,7 +8,7 @@ interface BottomNavProps {
   setActiveTab: (tab: TabType) => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab }) => {
+export const BottomNav: React.FC<BottomNavProps> = React.memo(({ activeTab, setActiveTab }) => {
   const tabs = [
     { id: 'home' as TabType, label: 'Home', icon: Home },
     { id: 'chat' as TabType, label: 'Chat', icon: MessageSquare },
@@ -18,7 +18,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0A0C10]/90 backdrop-blur-md border-t border-slate-800/80 py-2.5 px-3">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0A0C10]/95 backdrop-blur-md border-t border-slate-800/80 py-2.5 px-3 select-none gpu-accel">
       <div className="max-w-md mx-auto flex items-center justify-around">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -27,7 +27,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center gap-1 transition-all py-1.5 px-3.5 rounded-2xl ${
+              className={`flex flex-col items-center gap-1 transition-all py-1.5 px-3.5 rounded-2xl active:scale-95 cursor-pointer ${
                 isActive
                   ? 'text-white font-medium bg-indigo-500/15 border border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.25)]'
                   : 'text-slate-400 hover:text-slate-200 border border-transparent'
@@ -41,4 +41,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, setActiveTab })
       </div>
     </nav>
   );
-};
+});
+
+BottomNav.displayName = 'BottomNav';
+

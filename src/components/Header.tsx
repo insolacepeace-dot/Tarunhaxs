@@ -9,17 +9,17 @@ interface HeaderProps {
   onOpenCustomization: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
+export const Header: React.FC<HeaderProps> = React.memo(({
   userProfile,
   weather,
   onOpenPermissions,
   onOpenCustomization,
 }) => {
   return (
-    <header className="sticky top-0 z-30 w-full bg-[#0A0C10]/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-30 w-full bg-[#0A0C10]/95 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between select-none gpu-accel">
       {/* Brand & Sleek Header Badge */}
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 font-bold text-white text-lg italic">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 font-bold text-white text-lg italic shrink-0">
           D
         </div>
 
@@ -62,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onOpenPermissions}
           title="Security & Permissions"
-          className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-emerald-400 hover:border-emerald-500/50 hover:bg-slate-800 transition-all shadow-sm"
+          className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-emerald-400 hover:border-emerald-500/50 hover:bg-slate-800 transition-all shadow-sm active:scale-95 cursor-pointer"
         >
           <ShieldCheck className="w-4 h-4" />
         </button>
@@ -71,11 +71,14 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onOpenCustomization}
           title="Customize Avatar & Personality"
-          className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-indigo-400 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm"
+          className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-indigo-400 hover:border-indigo-500/50 hover:bg-slate-800 transition-all shadow-sm active:scale-95 cursor-pointer"
         >
           <Settings className="w-4 h-4" />
         </button>
       </div>
     </header>
   );
-};
+});
+
+Header.displayName = 'Header';
+

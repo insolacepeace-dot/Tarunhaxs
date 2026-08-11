@@ -6,7 +6,8 @@ interface VoiceWaveProps {
   isListening: boolean;
 }
 
-export const VoiceWave: React.FC<VoiceWaveProps> = ({ isSpeaking, isListening }) => {
+export const VoiceWave: React.FC<VoiceWaveProps> = React.memo(({ isSpeaking, isListening }) => {
+
   const bars = [16, 28, 45, 20, 60, 35, 80, 50, 90, 40, 75, 30, 65, 25, 55, 20, 40, 15];
   const isActive = isSpeaking || isListening;
 
@@ -54,5 +55,8 @@ export const VoiceWave: React.FC<VoiceWaveProps> = ({ isSpeaking, isListening })
       ))}
     </div>
   );
-};
+});
+
+VoiceWave.displayName = 'VoiceWave';
+
 

@@ -35,7 +35,7 @@ interface MemoryAndRoutinesViewProps {
   onApplyTimeShift: (routineId: string, newTime: string) => void;
 }
 
-export const MemoryAndRoutinesView: React.FC<MemoryAndRoutinesViewProps> = ({
+export const MemoryAndRoutinesView: React.FC<MemoryAndRoutinesViewProps> = React.memo(({
   memories,
   routines,
   habits,
@@ -469,4 +469,7 @@ export const MemoryAndRoutinesView: React.FC<MemoryAndRoutinesViewProps> = ({
       )}
     </div>
   );
-};
+});
+
+MemoryAndRoutinesView.displayName = 'MemoryAndRoutinesView';
+

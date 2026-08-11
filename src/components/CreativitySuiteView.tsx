@@ -22,7 +22,7 @@ interface CreativitySuiteViewProps {
   onAddNote: (note: Omit<Note, 'id' | 'updatedAt'>) => void;
 }
 
-export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = ({
+export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = React.memo(({
   notes,
   onAddNote,
 }) => {
@@ -471,4 +471,7 @@ export const CreativitySuiteView: React.FC<CreativitySuiteViewProps> = ({
       )}
     </div>
   );
-};
+});
+
+CreativitySuiteView.displayName = 'CreativitySuiteView';
+

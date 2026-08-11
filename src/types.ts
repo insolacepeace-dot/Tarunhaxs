@@ -77,6 +77,7 @@ export interface UserProfile {
   name: string;
   nickname: string;
   aiName?: string;
+  relationshipMode?: string;
   voiceGender?: 'male' | 'female';
   location: string;
   occupation: string;

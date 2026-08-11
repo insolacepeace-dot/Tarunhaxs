@@ -15,6 +15,7 @@ export const initialUserProfile: UserProfile = {
   name: 'Tarun',
   nickname: 'Tarun',
   aiName: 'DIGUU AI',
+  relationshipMode: 'Girlfriend 💕',
   voiceGender: 'male',
   location: 'Ahmedabad, India',
   occupation: 'Developer',

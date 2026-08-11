@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   initialUserProfile, 
   initialMemories, 
@@ -33,6 +33,7 @@ import { CreativitySuiteView } from './components/CreativitySuiteView';
 import { CustomizationView } from './components/CustomizationView';
 import { PermissionsModal } from './components/PermissionsModal';
 import { QuickActionsModal } from './components/QuickActionsModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { requestNativeAndroidPermissions } from './utils/nativeBridge';
 
 import { 
@@ -44,17 +45,35 @@ import {
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
 
-  // Core App States
-  const [userProfile, setUserProfile] = useState<UserProfile>(initialUserProfile);
+  // Core App States with LocalStorage Persistence
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    try {
+      const saved = localStorage.getItem('diguu_user_profile_v1');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Failed to parse user profile from localStorage:', e);
+    }
+    return initialUserProfile;
+  });
+
   const [memories, setMemories] = useState<MemoryItem[]>(initialMemories);
   const [routines, setRoutines] = useState<Routine[]>(initialRoutines);
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
   const [notes, setNotes] = useState<Note[]>(initialNotes);
-  const [habits, setHabits] = useState<HabitGoal[]>(initialHabits);
+  const [habits] = useState<HabitGoal[]>(initialHabits);
   const [permissions, setPermissions] = useState<AppPermissions>(initialPermissions);
   const [quickActions] = useState<QuickActionItem[]>(initialQuickActions);
   const [weather] = useState(initialWeather);
   const [places] = useState(initialPlaces);
+
+  // Sync profile to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('diguu_user_profile_v1', JSON.stringify(userProfile));
+    } catch (e) {
+      console.warn('Failed to save profile to localStorage:', e);
+    }
+  }, [userProfile]);
 
   // Auto trigger native Android runtime permission request on app launch
   useEffect(() => {
@@ -69,15 +88,32 @@ export default function App() {
     });
   }, []);
 
-  // Chat & Voice States
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'msg-0',
-      sender: 'diguu',
-      text: `Hii ${initialUserProfile.nickname} 💕! Main DIGUU AI hoon, aapki cute & caring girlfriend! Bolo mere babu, aaj aapke liye kya karun? (Kem cho Jaan! 💖)`,
-      timestamp: 'Just now',
-    },
-  ]);
+  // Chat & Voice States with LocalStorage
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem('diguu_chat_messages_v1');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Failed to parse chat messages from localStorage:', e);
+    }
+    return [
+      {
+        id: 'msg-0',
+        sender: 'diguu',
+        text: `Hii ${initialUserProfile.nickname} 💕! Main DIGUU AI hoon, aapki cute & caring girlfriend! Bolo mere babu, aaj aapke liye kya karun? (Kem cho Jaan! 💖)`,
+        timestamp: 'Just now',
+      },
+    ];
+  });
+
+  // Sync chat messages to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('diguu_chat_messages_v1', JSON.stringify(messages));
+    } catch (e) {
+      console.warn('Failed to save chat messages to localStorage:', e);
+    }
+  }, [messages]);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -91,9 +127,86 @@ export default function App() {
   const [selectedQuickAction, setSelectedQuickAction] = useState<QuickActionItem | null>(null);
 
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Memory leak prevention cleanup effect on unmount
+  useEffect(() => {
+    return () => {
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause();
+        activeAudioRef.current = null;
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  const fallbackWebSpeech = useCallback((cleanedText: string) => {
+    if (!('speechSynthesis' in window)) {
+      setIsSpeaking(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(cleanedText);
+    const langInfo = detectTextLanguage(cleanedText, userProfile.languageMode);
+    utterance.lang = langInfo.bcp47Tag;
+
+    const personaSettings = getPersonaVoiceSettings(userProfile.personality, userProfile.voiceSpeed || 1.0, userProfile.voiceGender || 'male');
+    utterance.pitch = personaSettings.pitch;
+    utterance.rate = personaSettings.rate;
+
+    const voices = window.speechSynthesis.getVoices();
+    let selectedVoice: SpeechSynthesisVoice | null = null;
+
+    if (langInfo.detectedLang === 'gujarati') {
+      selectedVoice = voices.find(v => 
+        v.lang.toLowerCase().startsWith('gu') || 
+        v.name.toLowerCase().includes('gujarati') || 
+        v.name.includes('ગુજરાતી')
+      ) || null;
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => 
+          v.lang.toLowerCase().startsWith('hi') || 
+          v.name.toLowerCase().includes('hindi')
+        ) || null;
+      }
+    } else if (langInfo.detectedLang === 'hindi' || langInfo.detectedLang === 'hinglish') {
+      selectedVoice = voices.find(v => 
+        v.lang.toLowerCase().startsWith('hi') || 
+        v.name.toLowerCase().includes('hindi')
+      ) || null;
+    }
+
+    // Default fallback to Indian English voice before any standard system voice
+    if (!selectedVoice) {
+      selectedVoice = voices.find(v => 
+        v.lang.toLowerCase().includes('en-in') || 
+        v.name.toLowerCase().includes('india') || 
+        v.name.toLowerCase().includes('hindi')
+      ) || null;
+    }
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+  }, [userProfile.languageMode, userProfile.personality, userProfile.voiceSpeed, userProfile.voiceGender]);
 
   // Natural Audio Speech Helper using Server-Side TTS Engine & HTML5 Audio
-  const speakText = async (text: string) => {
+  const speakText = useCallback(async (text: string) => {
     if (!text) return;
 
     // Stop previous playing audio or browser speech
@@ -150,63 +263,7 @@ export default function App() {
 
     // Client-side WebSpeech fallback if server audio is unreachable
     fallbackWebSpeech(cleanedText);
-  };
-
-  const fallbackWebSpeech = (cleanedText: string) => {
-    if (!('speechSynthesis' in window)) {
-      setIsSpeaking(false);
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(cleanedText);
-    const langInfo = detectTextLanguage(cleanedText, userProfile.languageMode);
-    utterance.lang = langInfo.bcp47Tag;
-
-    const personaSettings = getPersonaVoiceSettings(userProfile.personality, userProfile.voiceSpeed || 1.0, userProfile.voiceGender || 'male');
-    utterance.pitch = personaSettings.pitch;
-    utterance.rate = personaSettings.rate;
-
-    const voices = window.speechSynthesis.getVoices();
-    let selectedVoice: SpeechSynthesisVoice | null = null;
-
-    if (langInfo.detectedLang === 'gujarati') {
-      selectedVoice = voices.find(v => 
-        v.lang.toLowerCase().startsWith('gu') || 
-        v.name.toLowerCase().includes('gujarati') || 
-        v.name.includes('ગુજરાતી')
-      ) || null;
-      if (!selectedVoice) {
-        selectedVoice = voices.find(v => 
-          v.lang.toLowerCase().startsWith('hi') || 
-          v.name.toLowerCase().includes('hindi')
-        ) || null;
-      }
-    } else if (langInfo.detectedLang === 'hindi' || langInfo.detectedLang === 'hinglish') {
-      selectedVoice = voices.find(v => 
-        v.lang.toLowerCase().startsWith('hi') || 
-        v.name.toLowerCase().includes('hindi')
-      ) || null;
-    }
-
-    // Default fallback to Indian English voice before any standard system voice
-    if (!selectedVoice) {
-      selectedVoice = voices.find(v => 
-        v.lang.toLowerCase().includes('en-in') || 
-        v.name.toLowerCase().includes('india') || 
-        v.name.toLowerCase().includes('hindi')
-      ) || null;
-    }
-
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-    }
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
-  };
+  }, [userProfile.languageMode, userProfile.personality, userProfile.voiceGender, userProfile.voiceStyle, userProfile.voiceSpeed, fallbackWebSpeech]);
 
   // Pre-fetch Speech Synthesis Voices on App Mount
   useEffect(() => {
@@ -218,45 +275,8 @@ export default function App() {
     }
   }, []);
 
-  // Web Speech Recognition for Voice Input
-  const startVoiceInput = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.lang = userProfile.languageMode === 'gujarati' 
-        ? 'gu-IN' 
-        : (userProfile.languageMode === 'hindi' || userProfile.languageMode === 'hinglish')
-        ? 'hi-IN' 
-        : 'en-US';
-      recognition.interimResults = false;
-
-      recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => setIsListening(false);
-      recognition.onerror = () => setIsListening(false);
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript) {
-          handleSendMessage(transcript);
-        }
-      };
-
-      recognition.start();
-    } else {
-      // Fallback simulated voice prompt if Web Speech is blocked in browser
-      setIsListening(true);
-      setTimeout(() => {
-        setIsListening(false);
-        const fallbackText = userProfile.languageMode === 'gujarati'
-          ? 'કેમ છો જાન 💕 આજે હવામાન કેવું છે?'
-          : 'Hii Jaan 💕 Khana khaya aapne? Aaj ka weather batao!';
-        handleSendMessage(fallbackText);
-      }, 2000);
-    }
-  };
-
   // Main DIGUU Chat Communication handler
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = useCallback(async (text: string) => {
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       sender: 'user',
@@ -319,10 +339,68 @@ export default function App() {
     } finally {
       setIsChatLoading(false);
     }
-  };
+  }, [messages, userProfile, memories, speakText]);
+
+  // Web Speech Recognition for Voice Input
+  const startVoiceInput = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (e) {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.lang = userProfile.languageMode === 'gujarati' 
+        ? 'gu-IN' 
+        : (userProfile.languageMode === 'hindi' || userProfile.languageMode === 'hinglish')
+        ? 'hi-IN' 
+        : 'en-US';
+      recognition.interimResults = false;
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
+      recognition.onerror = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results?.[0]?.[0]?.transcript;
+        if (transcript) {
+          handleSendMessage(transcript);
+        }
+      };
+
+      try {
+        recognition.start();
+      } catch (e) {
+        console.warn('Recognition start failed:', e);
+        setIsListening(false);
+      }
+    } else {
+      // Fallback simulated voice prompt if Web Speech is blocked in browser
+      setIsListening(true);
+      setTimeout(() => {
+        setIsListening(false);
+        const fallbackText = userProfile.languageMode === 'gujarati'
+          ? 'કેમ છો જાન 💕 આજે હવામાન કેવું છે?'
+          : 'Hii Jaan 💕 Khana khaya aapne? Aaj ka weather batao!';
+        handleSendMessage(fallbackText);
+      }, 2000);
+    }
+  }, [userProfile.languageMode, handleSendMessage]);
 
   // Generate Proactive Morning / Evening Briefing
-  const handleGenerateBriefing = async (type: 'morning' | 'evening') => {
+  const handleGenerateBriefing = useCallback(async (type: 'morning' | 'evening') => {
     setIsBriefingLoading(true);
     try {
       const res = await fetch('/api/briefing', {
@@ -345,77 +423,103 @@ export default function App() {
     } finally {
       setIsBriefingLoading(false);
     }
-  };
+  }, [weather, reminders, memories, userProfile.nickname]);
 
   // Memory Handlers
-  const handleAddMemory = (memory: Omit<MemoryItem, 'id' | 'createdAt'>) => {
+  const handleAddMemory = useCallback((memory: Omit<MemoryItem, 'id' | 'createdAt'>) => {
     const newItem: MemoryItem = {
       ...memory,
       id: `mem-${Date.now()}`,
       createdAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
     };
     setMemories((prev) => [newItem, ...prev]);
-  };
+  }, []);
 
-  const handleDeleteMemory = (id: string) => {
+  const handleDeleteMemory = useCallback((id: string) => {
     setMemories((prev) => prev.filter((m) => m.id !== id));
-  };
+  }, []);
 
-  const handleToggleMemoryPermission = (id: string) => {
+  const handleToggleMemoryPermission = useCallback((id: string) => {
     setMemories((prev) =>
       prev.map((m) => (m.id === id ? { ...m, permissionGranted: !m.permissionGranted } : m))
     );
-  };
+  }, []);
 
   // Routine Handlers
-  const handleToggleRoutine = (id: string) => {
+  const handleToggleRoutine = useCallback((id: string) => {
     setRoutines((prev) =>
       prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r))
     );
-  };
+  }, []);
 
-  const handleAddRoutine = (routine: Omit<Routine, 'id'>) => {
+  const handleAddRoutine = useCallback((routine: Omit<Routine, 'id'>) => {
     setRoutines((prev) => [...prev, { ...routine, id: `r-${Date.now()}` }]);
-  };
+  }, []);
 
-  const handleApplyScheduleShift = (routineId: string, newTime: string) => {
+  const handleApplyScheduleShift = useCallback((routineId: string, newTime: string) => {
     setRoutines((prev) =>
       prev.map((r) => (r.id === routineId ? { ...r, time: newTime } : r))
     );
-  };
+  }, []);
 
   // Reminder Handlers
-  const handleToggleReminder = (id: string) => {
+  const handleToggleReminder = useCallback((id: string) => {
     setReminders((prev) =>
       prev.map((r) => (r.id === id ? { ...r, completed: !r.completed } : r))
     );
-  };
+  }, []);
 
-  const handleAddReminder = (reminder: Omit<Reminder, 'id' | 'completed'>) => {
+  const handleAddReminder = useCallback((reminder: Omit<Reminder, 'id' | 'completed'>) => {
     setReminders((prev) => [{ ...reminder, id: `rem-${Date.now()}`, completed: false }, ...prev]);
-  };
+  }, []);
 
   // Note Handlers
-  const handleAddNote = (note: Omit<Note, 'id' | 'updatedAt'>) => {
+  const handleAddNote = useCallback((note: Omit<Note, 'id' | 'updatedAt'>) => {
     const newNote: Note = {
       ...note,
       id: `n-${Date.now()}`,
       updatedAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
     };
     setNotes((prev) => [newNote, ...prev]);
-  };
+  }, []);
 
   // Profile Update Handler
-  const handleUpdateProfile = (updated: Partial<UserProfile>) => {
+  const handleUpdateProfile = useCallback((updated: Partial<UserProfile>) => {
     setUserProfile((prev) => ({ ...prev, ...updated }));
-  };
+  }, []);
+
+  const handleOpenPermissions = useCallback(() => {
+    setIsPermissionsModalOpen(true);
+  }, []);
+
+  const handleOpenCustomization = useCallback(() => {
+    setActiveTab('profile');
+  }, []);
+
+  const handleNavigateToScheduler = useCallback(() => {
+    setActiveTab('memory');
+  }, []);
+
+  const handleLanguageChange = useCallback((mode: any) => {
+    handleUpdateProfile({ languageMode: mode });
+  }, [handleUpdateProfile]);
+
+  const handleClosePermissionsModal = useCallback(() => {
+    setIsPermissionsModalOpen(false);
+  }, []);
+
+  const handleCloseQuickActionsModal = useCallback(() => {
+    setSelectedQuickAction(null);
+  }, []);
 
   // Permission Toggle Handler with Real Native Android Request Trigger
-  const handleTogglePermission = async (key: keyof AppPermissions) => {
-    const nextState = !permissions[key];
-    setPermissions((prev) => ({ ...prev, [key]: nextState }));
+  const handleTogglePermission = useCallback(async (key: keyof AppPermissions) => {
+    setPermissions((prev) => {
+      const nextState = !prev[key];
+      return { ...prev, [key]: nextState };
+    });
 
-    if (nextState) {
+    if (!permissions[key]) {
       if (key === 'microphone') {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -448,88 +552,90 @@ export default function App() {
         }
       }
     }
-  };
+  }, [permissions]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-pink-500 selection:text-white">
+    <div className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] flex flex-col overflow-hidden bg-slate-950 text-slate-100 font-sans selection:bg-pink-500 selection:text-white gpu-accel">
       {/* App Header */}
       <Header
         userProfile={userProfile}
         weather={weather}
-        onOpenPermissions={() => setIsPermissionsModalOpen(true)}
-        onOpenCustomization={() => setActiveTab('profile')}
+        onOpenPermissions={handleOpenPermissions}
+        onOpenCustomization={handleOpenCustomization}
       />
 
-      {/* Main View Container */}
-      <main className="pt-2">
-        {activeTab === 'home' && (
-          <SmartDashboard
-            userProfile={userProfile}
-            weather={weather}
-            reminders={reminders}
-            routines={routines}
-            habits={habits}
-            quickActions={quickActions}
-            places={places}
-            isSpeaking={isSpeaking}
-            isListening={isListening}
-            onVoiceClick={startVoiceInput}
-            onSelectAction={(action) => setSelectedQuickAction(action)}
-            onToggleReminder={handleToggleReminder}
-            onGenerateBriefing={handleGenerateBriefing}
-            onApplyTimeShift={handleApplyScheduleShift}
-            onNavigateToScheduler={() => setActiveTab('memory')}
-            briefingText={briefingText}
-            isBriefingLoading={isBriefingLoading}
-          />
-        )}
+      {/* Main View Container with Error Boundary */}
+      <main className="flex-1 overflow-y-auto touch-scroll pt-2 pb-20 px-2 sm:px-4">
+        <ErrorBoundary fallbackTitle="View Navigation Recovered">
+          {activeTab === 'home' && (
+            <SmartDashboard
+              userProfile={userProfile}
+              weather={weather}
+              reminders={reminders}
+              routines={routines}
+              habits={habits}
+              quickActions={quickActions}
+              places={places}
+              isSpeaking={isSpeaking}
+              isListening={isListening}
+              onVoiceClick={startVoiceInput}
+              onSelectAction={setSelectedQuickAction}
+              onToggleReminder={handleToggleReminder}
+              onGenerateBriefing={handleGenerateBriefing}
+              onApplyTimeShift={handleApplyScheduleShift}
+              onNavigateToScheduler={handleNavigateToScheduler}
+              briefingText={briefingText}
+              isBriefingLoading={isBriefingLoading}
+            />
+          )}
 
-        {activeTab === 'chat' && (
-          <ChatView
-            userProfile={userProfile}
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            isSpeaking={isSpeaking}
-            isListening={isListening}
-            onVoiceClick={startVoiceInput}
-            onSpeakText={speakText}
-            onLanguageChange={(mode) => handleUpdateProfile({ languageMode: mode })}
-            isLoading={isChatLoading}
-          />
-        )}
+          {activeTab === 'chat' && (
+            <ChatView
+              userProfile={userProfile}
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isSpeaking={isSpeaking}
+              isListening={isListening}
+              onVoiceClick={startVoiceInput}
+              onSpeakText={speakText}
+              onLanguageChange={handleLanguageChange}
+              isLoading={isChatLoading}
+            />
+          )}
 
-        {activeTab === 'memory' && (
-          <MemoryAndRoutinesView
-            memories={memories}
-            routines={routines}
-            habits={habits}
-            reminders={reminders}
-            weather={weather}
-            userName={userProfile.nickname}
-            onAddMemory={handleAddMemory}
-            onDeleteMemory={handleDeleteMemory}
-            onToggleMemoryPermission={handleToggleMemoryPermission}
-            onToggleRoutine={handleToggleRoutine}
-            onAddRoutine={handleAddRoutine}
-            onApplyTimeShift={handleApplyScheduleShift}
-          />
-        )}
+          {activeTab === 'memory' && (
+            <MemoryAndRoutinesView
+              memories={memories}
+              routines={routines}
+              habits={habits}
+              reminders={reminders}
+              weather={weather}
+              userName={userProfile.nickname}
+              onAddMemory={handleAddMemory}
+              onDeleteMemory={handleDeleteMemory}
+              onToggleMemoryPermission={handleToggleMemoryPermission}
+              onToggleRoutine={handleToggleRoutine}
+              onAddRoutine={handleAddRoutine}
+              onApplyTimeShift={handleApplyScheduleShift}
+            />
+          )}
 
-        {activeTab === 'creativity' && (
-          <CreativitySuiteView
-            notes={notes}
-            onAddNote={handleAddNote}
-          />
-        )}
+          {activeTab === 'creativity' && (
+            <CreativitySuiteView
+              notes={notes}
+              onAddNote={handleAddNote}
+            />
+          )}
 
-        {activeTab === 'profile' && (
-          <CustomizationView
-            userProfile={userProfile}
-            permissions={permissions}
-            onUpdateProfile={handleUpdateProfile}
-            onTogglePermission={handleTogglePermission}
-          />
-        )}
+          {activeTab === 'profile' && (
+            <CustomizationView
+              userProfile={userProfile}
+              permissions={permissions}
+              onUpdateProfile={handleUpdateProfile}
+              onTogglePermission={handleTogglePermission}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Bottom Navigation */}
@@ -538,7 +644,7 @@ export default function App() {
       {/* Permissions Modal */}
       <PermissionsModal
         isOpen={isPermissionsModalOpen}
-        onClose={() => setIsPermissionsModalOpen(false)}
+        onClose={handleClosePermissionsModal}
         permissions={permissions}
         onTogglePermission={handleTogglePermission}
       />
@@ -546,9 +652,10 @@ export default function App() {
       {/* Quick Actions Modal */}
       <QuickActionsModal
         actionItem={selectedQuickAction}
-        onClose={() => setSelectedQuickAction(null)}
+        onClose={handleCloseQuickActionsModal}
         onAddReminder={handleAddReminder}
       />
     </div>
   );
 }
+
