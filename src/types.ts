@@ -27,6 +27,22 @@ export interface Routine {
   repeat: 'Daily' | 'Weekdays' | 'Weekends';
   enabled: boolean;
   icon?: string;
+  category?: 'outdoor' | 'indoor' | 'work' | 'wellness';
+  location?: string;
+}
+
+export interface ScheduleSuggestion {
+  id: string;
+  routineId?: string;
+  reminderId?: string;
+  title: string;
+  originalTime: string;
+  suggestedTime: string;
+  type: 'weather_impact' | 'calendar_conflict' | 'routine_optimization';
+  severity: 'high' | 'medium' | 'low';
+  reason: string;
+  actionLabel: string;
+  applied?: boolean;
 }
 
 export interface Reminder {

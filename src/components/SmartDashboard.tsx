@@ -28,7 +28,7 @@ import {
   Layers,
   Activity
 } from 'lucide-react';
-import { UserProfile, WeatherData, Reminder, HabitGoal, QuickActionItem, SavedPlace } from '../types';
+import { UserProfile, WeatherData, Reminder, HabitGoal, QuickActionItem, SavedPlace, Routine } from '../types';
 import { AvatarCompanion } from './AvatarCompanion';
 import { 
   toggleNativeFlashlight, 
@@ -41,6 +41,7 @@ interface SmartDashboardProps {
   userProfile: UserProfile;
   weather: WeatherData;
   reminders: Reminder[];
+  routines?: Routine[];
   habits: HabitGoal[];
   quickActions: QuickActionItem[];
   places: SavedPlace[];
@@ -50,6 +51,8 @@ interface SmartDashboardProps {
   onSelectAction: (actionItem: QuickActionItem) => void;
   onToggleReminder: (id: string) => void;
   onGenerateBriefing: (type: 'morning' | 'evening') => void;
+  onApplyTimeShift?: (routineId: string, newTime: string) => void;
+  onNavigateToScheduler?: () => void;
   briefingText: string;
   isBriefingLoading: boolean;
 }
@@ -58,6 +61,7 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
   userProfile,
   weather,
   reminders,
+  routines = [],
   habits,
   quickActions,
   places,
@@ -67,6 +71,8 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
   onSelectAction,
   onToggleReminder,
   onGenerateBriefing,
+  onApplyTimeShift,
+  onNavigateToScheduler,
   briefingText,
   isBriefingLoading,
 }) => {
@@ -219,6 +225,57 @@ export const SmartDashboard: React.FC<SmartDashboardProps> = ({
             )}
           </div>
         )}
+      </div>
+
+      {/* Smart Scheduler AI Recommendation Widget */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/60 to-slate-900 border border-indigo-500/30 rounded-3xl p-4 backdrop-blur-md shadow-lg space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+            <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-widest">
+              Smart Scheduler Alert
+            </h3>
+          </div>
+          <button
+            onClick={onNavigateToScheduler}
+            className="text-[10px] font-bold text-pink-400 hover:text-pink-300 flex items-center gap-1 cursor-pointer"
+          >
+            <span>Full Analysis</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="p-3 bg-slate-950/70 rounded-2xl border border-slate-800 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 shrink-0">
+              <CloudSun className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-slate-100">
+                Weather Shift: Gym & Fitness Routine
+              </div>
+              <div className="text-[10px] text-slate-400 mt-0.5">
+                Current: {weather.temp}°C {weather.condition} in {weather.city} • Peak heat at 07:00 PM
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              if (onApplyTimeShift && routines.length > 0) {
+                const targetRoutine = routines.find(r => r.title.toLowerCase().includes('gym')) || routines[0];
+                onApplyTimeShift(targetRoutine.id, '06:15 PM');
+                setToastMsg('Shifted Gym Routine to 06:15 PM! 🕒');
+                setTimeout(() => setToastMsg(null), 2500);
+              } else if (onNavigateToScheduler) {
+                onNavigateToScheduler();
+              }
+            }}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white text-[11px] font-bold shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
+          >
+            Shift 06:15 PM
+          </button>
+        </div>
       </div>
 
       {/* Toast Feedback Notification */}

@@ -17,30 +17,39 @@ import {
   Search,
   Lock
 } from 'lucide-react';
-import { MemoryItem, Routine, HabitGoal, MemoryCategory } from '../types';
+import { MemoryItem, Routine, HabitGoal, MemoryCategory, Reminder, WeatherData } from '../types';
+import { SmartSchedulerView } from './SmartSchedulerView';
 
 interface MemoryAndRoutinesViewProps {
   memories: MemoryItem[];
   routines: Routine[];
   habits: HabitGoal[];
+  reminders: Reminder[];
+  weather: WeatherData;
+  userName: string;
   onAddMemory: (memory: Omit<MemoryItem, 'id' | 'createdAt'>) => void;
   onDeleteMemory: (id: string) => void;
   onToggleMemoryPermission: (id: string) => void;
   onToggleRoutine: (id: string) => void;
   onAddRoutine: (routine: Omit<Routine, 'id'>) => void;
+  onApplyTimeShift: (routineId: string, newTime: string) => void;
 }
 
 export const MemoryAndRoutinesView: React.FC<MemoryAndRoutinesViewProps> = ({
   memories,
   routines,
   habits,
+  reminders,
+  weather,
+  userName,
   onAddMemory,
   onDeleteMemory,
   onToggleMemoryPermission,
   onToggleRoutine,
   onAddRoutine,
+  onApplyTimeShift,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'memory' | 'routines' | 'health'>('memory');
+  const [activeSubTab, setActiveSubTab] = useState<'memory' | 'scheduler' | 'routines' | 'health'>('scheduler');
 
   // Memory form state
   const [showAddMemory, setShowAddMemory] = useState(false);
@@ -104,41 +113,65 @@ export const MemoryAndRoutinesView: React.FC<MemoryAndRoutinesViewProps> = ({
       {/* Sub Navigation Bar */}
       <div className="flex items-center justify-center p-1 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
         <button
+          onClick={() => setActiveSubTab('scheduler')}
+          className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+            activeSubTab === 'scheduler'
+              ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+          <span>Smart Scheduler</span>
+        </button>
+
+        <button
           onClick={() => setActiveSubTab('memory')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
             activeSubTab === 'memory'
               ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Brain className="w-4 h-4" />
-          <span>Personal Memory</span>
+          <Brain className="w-3.5 h-3.5" />
+          <span>Memory</span>
         </button>
 
         <button
           onClick={() => setActiveSubTab('routines')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
             activeSubTab === 'routines'
               ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Clock className="w-4 h-4" />
-          <span>My Routines</span>
+          <Clock className="w-3.5 h-3.5" />
+          <span>Routines</span>
         </button>
 
         <button
           onClick={() => setActiveSubTab('health')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
             activeSubTab === 'health'
               ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Droplets className="w-4 h-4" />
+          <Droplets className="w-3.5 h-3.5" />
           <span>Wellness</span>
         </button>
       </div>
+
+      {/* 0. SMART SCHEDULER TAB */}
+      {activeSubTab === 'scheduler' && (
+        <SmartSchedulerView
+          routines={routines}
+          reminders={reminders}
+          weather={weather}
+          userName={userName}
+          onApplyTimeShift={onApplyTimeShift}
+          onAddRoutine={onAddRoutine}
+        />
+      )}
 
       {/* 1. PERSONAL MEMORY TAB */}
       {activeSubTab === 'memory' && (

@@ -27,15 +27,15 @@ const getApiKeyFromReq = (req?: express.Request): string | undefined => {
   return undefined;
 };
 
-// Initialize Gemini Client safely on server side
+// Initialize Gemini Client safely on server side with dynamic key resolution
 const getAiClient = (req?: express.Request) => {
   const customApiKey = getApiKeyFromReq(req);
-  const apiKey = customApiKey || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY environment variable is missing and no custom key provided.");
+  const apiKey = customApiKey || process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error("Free Gemini API Key set karne ke liye Profile tab me jayein.");
   }
   return new GoogleGenAI({
-    apiKey,
+    apiKey: apiKey.trim(),
     httpOptions: {
       headers: {
         "User-Agent": "aistudio-build",
@@ -44,7 +44,7 @@ const getAiClient = (req?: express.Request) => {
   });
 };
 
-// Robust Gemini execution helper with automatic 429 quota retry and model fallback
+// Robust Gemini execution helper with active free model fallback & 429 quota retries
 async function generateContentWithFallback(
   ai: GoogleGenAI,
   params: {
@@ -54,9 +54,10 @@ async function generateContentWithFallback(
   }
 ) {
   const modelsToTry = [
-    params.primaryModel || "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-flash",
+    params.primaryModel || "gemini-3.6-flash",
+    "gemini-3.6-flash",
+    "gemini-flash-latest",
+    "gemini-3.1-flash-lite",
   ];
 
   // Remove duplicates while keeping order
@@ -167,7 +168,7 @@ Rules:
     });
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-2.5-flash",
+      primaryModel: "gemini-3.6-flash",
       contents,
       config: {
         systemInstruction,
@@ -180,14 +181,17 @@ Rules:
     });
   } catch (error: any) {
     console.error("Error in DIGUU /api/chat:", error?.message || error);
-    const targetUserName = req.body?.userProfile?.name || req.body?.userProfile?.nickname || "Tarun";
-    const isQuota = error?.status === "RESOURCE_EXHAUSTED" || error?.code === 429 || String(error?.message).includes("quota") || String(error?.message).includes("429");
+    const rawErrorMsg = error?.message || String(error);
+    const isQuota = error?.status === "RESOURCE_EXHAUSTED" || error?.code === 429 || rawErrorMsg.includes("quota") || rawErrorMsg.includes("429");
 
-    res.json({
-      text: isQuota
-        ? `Hii ${targetUserName}! 💕 Free tier quota limits thoda busy hain abhi. Please aapse request hai ki 10-15 seconds mein firse try kijiye, main yahan ready hoon!`
-        : `Hii ${targetUserName}! 💕 Connection mein thoda lag aaya. Let's try sending your message again!`,
-      isFallback: true,
+    const displayText = isQuota
+      ? `⚠️ Gemini Quota Limit Reached (429): ${rawErrorMsg}. Please try again in 10-15 seconds.`
+      : `⚠️ API Error: ${rawErrorMsg}`;
+
+    res.status(500).json({
+      text: displayText,
+      error: rawErrorMsg,
+      isError: true,
     });
   }
 });
@@ -225,7 +229,7 @@ Include:
 4. Relaxing night thought or funny story joke to unwind.`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-2.5-flash",
+      primaryModel: "gemini-3.6-flash",
       contents: prompt,
       config: {
         systemInstruction: "You are DIGUU AI, the ultimate caring AI Bestie.",
@@ -275,7 +279,7 @@ app.post("/api/creativity", async (req, res) => {
     }
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-2.5-flash",
+      primaryModel: "gemini-3.6-flash",
       contents: userPrompt,
       config: { systemInstruction },
     });
@@ -285,6 +289,78 @@ app.post("/api/creativity", async (req, res) => {
     console.error("Error in /api/creativity:", error?.message || error);
     res.json({
       result: `✨ DIGUU Creative Output:\n\n${req.body?.prompt || "Draft"}\n\n(Quota limit momentarily hit. Try again in a few seconds!)`,
+      isFallback: true,
+    });
+  }
+});
+
+// API: Smart Scheduler (Analyzes routines, weather conditions & calendar conflicts)
+app.post("/api/smart-scheduler", async (req, res) => {
+  try {
+    const { routines, reminders, weather, userName } = req.body;
+    const ai = getAiClient(req);
+
+    const prompt = `Analyze the user's daily routines and scheduled reminders against current weather conditions and potential time overlaps or conflicts.
+Context:
+User Name: ${userName || "Tarun"}
+Current Weather: ${typeof weather === 'object' ? `${weather.temp}°C, ${weather.condition} in ${weather.city}` : (weather || "Clear Sky, 32°C")}
+Active Routines: ${JSON.stringify(routines || [])}
+Scheduled Reminders / Calendar: ${JSON.stringify(reminders || [])}
+
+Generate intelligent, dynamic schedule adjustment recommendations.
+Identify:
+1. Weather Mismatches (e.g., outdoor workout during rain, extreme heat, or thunderstorm).
+2. Calendar/Time Overlaps (e.g., routine time conflicting with a reminder or work hours).
+3. Routine Optimizations (e.g., suggesting a better time slot for wellness/hydration).
+
+Respond strictly with a JSON array of objects with the exact key names:
+[
+  {
+    "id": "sugg-1",
+    "routineId": "r4",
+    "title": "Weather Alert: Adjust Fitness Routine",
+    "originalTime": "07:00 PM",
+    "suggestedTime": "06:15 PM",
+    "type": "weather_impact",
+    "severity": "high",
+    "reason": "Temperature is projected at 36°C with high humidity at 07:00 PM. Shifting to 06:15 PM offers cooler conditions.",
+    "actionLabel": "Shift to 06:15 PM"
+  }
+]`;
+
+    const response = await generateContentWithFallback(ai, {
+      primaryModel: "gemini-3.6-flash",
+      contents: prompt,
+      config: {
+        systemInstruction: "You are DIGUU Smart Scheduler AI. Return a valid JSON array of schedule suggestions without markdown backticks.",
+      },
+    });
+
+    let suggestions = [];
+    try {
+      const cleanJson = response.text.replace(/```json/g, "").replace(/```/g, "").trim();
+      suggestions = JSON.parse(cleanJson);
+    } catch (parseErr) {
+      console.warn("Failed to parse JSON from scheduler response:", parseErr);
+    }
+
+    res.json({ suggestions });
+  } catch (error: any) {
+    console.error("Error in /api/smart-scheduler:", error?.message || error);
+    res.json({
+      suggestions: [
+        {
+          id: "sugg-fallback-1",
+          routineId: "r4",
+          title: "Weather Adjustment: Gym Workout",
+          originalTime: "07:00 PM",
+          suggestedTime: "06:15 PM",
+          type: "weather_impact",
+          severity: "medium",
+          reason: "High temperature predicted around 07:00 PM. Advancing workout by 45 mins avoids peak heat.",
+          actionLabel: "Shift to 06:15 PM"
+        }
+      ],
       isFallback: true,
     });
   }
@@ -311,7 +387,7 @@ Requirements:
 - Output ONLY the final reply message text directly without quotes, labels, or extra conversational filler.`;
 
     const response = await generateContentWithFallback(ai, {
-      primaryModel: "gemini-2.5-flash",
+      primaryModel: "gemini-3.6-flash",
       contents: prompt,
       config: {
         systemInstruction: `You are an auto-reply generator for ${targetUserName}. Produce direct, concise WhatsApp replies in ${lang}.`,

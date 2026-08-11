@@ -282,7 +282,7 @@ export default function App() {
       });
 
       const data = await response.json();
-      const aiResponseText = data.text || data.fallback || 'Main aapke saath hoon 💕';
+      const aiResponseText = data.text || (data.error ? `⚠️ API Error: ${data.error}` : 'Main aapke saath hoon 💕');
 
       // Check if response triggered an action
       let actionTag = undefined;
@@ -306,12 +306,13 @@ export default function App() {
 
       setMessages((prev) => [...prev, diguuMsg]);
       speakText(aiResponseText);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error sending message:', err);
+      const errorMsgText = `⚠️ API Connection Error: ${err?.message || 'Failed to reach backend server'}`;
       const fallbackMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         sender: 'diguu',
-        text: 'Hii Jaan! DIGUU AI is listening and right here for you 💕',
+        text: errorMsgText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, fallbackMsg]);
@@ -375,6 +376,12 @@ export default function App() {
 
   const handleAddRoutine = (routine: Omit<Routine, 'id'>) => {
     setRoutines((prev) => [...prev, { ...routine, id: `r-${Date.now()}` }]);
+  };
+
+  const handleApplyScheduleShift = (routineId: string, newTime: string) => {
+    setRoutines((prev) =>
+      prev.map((r) => (r.id === routineId ? { ...r, time: newTime } : r))
+    );
   };
 
   // Reminder Handlers
@@ -460,6 +467,7 @@ export default function App() {
             userProfile={userProfile}
             weather={weather}
             reminders={reminders}
+            routines={routines}
             habits={habits}
             quickActions={quickActions}
             places={places}
@@ -469,6 +477,8 @@ export default function App() {
             onSelectAction={(action) => setSelectedQuickAction(action)}
             onToggleReminder={handleToggleReminder}
             onGenerateBriefing={handleGenerateBriefing}
+            onApplyTimeShift={handleApplyScheduleShift}
+            onNavigateToScheduler={() => setActiveTab('memory')}
             briefingText={briefingText}
             isBriefingLoading={isBriefingLoading}
           />
@@ -493,11 +503,15 @@ export default function App() {
             memories={memories}
             routines={routines}
             habits={habits}
+            reminders={reminders}
+            weather={weather}
+            userName={userProfile.nickname}
             onAddMemory={handleAddMemory}
             onDeleteMemory={handleDeleteMemory}
             onToggleMemoryPermission={handleToggleMemoryPermission}
             onToggleRoutine={handleToggleRoutine}
             onAddRoutine={handleAddRoutine}
+            onApplyTimeShift={handleApplyScheduleShift}
           />
         )}
 
