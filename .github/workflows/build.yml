@@ -24,21 +24,20 @@ jobs:
           node-version: '22'
 
       - name: Install Dependencies
-        run: npm ci || npm install
+        run: npm install
 
       - name: Build Web Assets
         run: npm run build
 
-      - name: Force Re-Add and Sync Capacitor Android
+      - name: Clean and Re-Add Capacitor Android Platform
         run: |
-          npx cap add android || true
+          rm -rf android
+          npx cap add android
           npx cap copy android
           npx cap sync android
 
-      - name: Setup Gradle Action (Cache Disabled to bypass GitHub Outage)
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          cache-disabled: true
+      - name: Setup Gradle System Executable
+        run: sudo apt-get update && sudo apt-get install -y gradle
 
       - name: Build Android Debug APK
         run: |
